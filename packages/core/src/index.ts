@@ -12,6 +12,7 @@ export * from "./uploads.js";
 export * from "./analytics.js";
 export * from "./schedule.js";
 export * from "./flows.js";
+export * from "./report.js";
 export * from "./ig/client.js";
 export * from "./ig/oauth.js";
 export * from "./ig/oauth-facebook.js";

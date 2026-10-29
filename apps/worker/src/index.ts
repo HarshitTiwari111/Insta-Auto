@@ -31,6 +31,9 @@ await m.upsertJobScheduler("sweep-posts", { every: 5 * 60_000 }, { name: "sweep-
 await m.upsertJobScheduler("cleanup", { pattern: "30 4 * * *" }, { name: "cleanup", data: { task: "cleanup" } });
 await m.upsertJobScheduler("snapshot-stats", { pattern: "5 * * * *" }, { name: "snapshot-stats", data: { task: "snapshot-stats" } });
 await m.add("snapshot-stats", { task: "snapshot-stats" }); // fresh numbers right after boot
+// Reports at 09:00 IST (03:30 UTC): weekly on Mondays, monthly on the 1st
+await m.upsertJobScheduler("report-weekly", { pattern: "30 3 * * 1" }, { name: "report-weekly", data: { task: "report", period: "weekly" } });
+await m.upsertJobScheduler("report-monthly", { pattern: "30 3 1 * *" }, { name: "report-monthly", data: { task: "report", period: "monthly" } });
 if (e.COMMENT_POLL_MINUTES > 0) {
   await m.upsertJobScheduler(
     "poll-comments",

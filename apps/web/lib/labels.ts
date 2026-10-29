@@ -12,6 +12,8 @@ const LABELS: Record<string, string> = {
   "error.first_comment": "First comment failed",
   "automation.deferred": "Waiting (working hours / hourly limit)",
   "backup.restored": "Backup restored",
+  "report.weekly": "Weekly report",
+  "report.monthly": "Monthly report",
   "comment.private_reply": "Sent private reply",
   "dm.reply": "Auto-replied to DM",
   "dm.manual": "Replied to DM",

@@ -189,3 +189,39 @@ export async function contentIdeas(opts: {
     .slice(0, 8)
     .map((i) => ({ title: String(i.title), format: String(i.format ?? "Photo"), caption: String(i.caption) }));
 }
+
+export interface AiTimeSlot {
+  day: string;
+  time: string;
+  reason: string;
+}
+
+/**
+ * Best posting times from the account's own post history (local time) plus general knowledge of the
+ * audience described in the business info. The stats are passed in, the model only reasons over them.
+ */
+export async function aiBestTimes(opts: {
+  apiKey: string;
+  model: string;
+  timezone: string;
+  businessInfo: string;
+  posts: { weekday: string; hour: number; likes: number; comments: number; type: string }[];
+}): Promise<{ slots: AiTimeSlot[]; tip: string }> {
+  const rows = opts.posts.slice(0, 50).map((p) => `${p.weekday} ${String(p.hour).padStart(2, "0")}:00 · ${p.type} · ${p.likes} likes · ${p.comments} comments`);
+  const out = await geminiJson<{ slots?: Partial<AiTimeSlot>[]; tip?: string }>({
+    apiKey: opts.apiKey,
+    model: opts.model,
+    system:
+      `You advise when an Instagram business account should post. Times are local (${opts.timezone}). ` +
+      "Use the account's own post results first; when there are few posts, fall back to typical behaviour of the audience in the business info and say so. " +
+      'Answer JSON: {"slots":[{"day":"Tuesday","time":"19:00-20:00","reason":"short reason"}],"tip":"one short practical tip"} with exactly 3 slots, best first. ' +
+      "Write the reasons and tip in Hinglish if the business info is Hinglish, else English.\n\nBusiness info:\n" +
+      (opts.businessInfo.trim() || "(none provided)"),
+    user: rows.length ? `Past posts:\n${rows.join("\n")}` : "No posts yet.",
+  });
+  const slots = (out.slots ?? [])
+    .filter((s) => s.day && s.time)
+    .slice(0, 3)
+    .map((s) => ({ day: String(s.day), time: String(s.time), reason: String(s.reason ?? "") }));
+  return { slots, tip: String(out.tip ?? "") };
+}

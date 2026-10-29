@@ -10,6 +10,7 @@ import { MEDIA_NAME_RE, uploadedMediaName } from "../src/uploads.js";
 import { bestPosts, bestTimes, dmStats, hashtagPerformance, postStats, summarize } from "../src/analytics.js";
 import { nextWorkStart } from "../src/schedule.js";
 import { flowReply, validateFlow, type FlowLike } from "../src/flows.js";
+import { countActivity, reportText } from "../src/report.js";
 
 test("webhook signature: valid, tampered, missing", () => {
   const secret = "app-secret";
@@ -283,4 +284,12 @@ test("blocklist: case and @ insensitive", () => {
   assert.equal(isBlockedUser(list, undefined), false);
   assert.equal(isBlockedUser([], "spammer_123"), false);
   assert.equal(normalizeUsername("  @Some.User "), "some.user");
+});
+
+test("weekly report: counts and text", () => {
+  const c = countActivity(["post.published", "post.published", "post.failed", "comment.reply", "comment.manual_reply", "dm.flow", "comment.private_reply", "comment.ai_spam", "account.updated"]);
+  assert.deepEqual(c, { postsPublished: 2, postsFailed: 1, commentReplies: 2, dmReplies: 2, hiddenOrDeleted: 1 });
+  const t = reportText("weekly", { ...c, dmsReceived: 3, followersStart: 100, followersEnd: 112 });
+  assert.equal(t, "Last 7 days: 112 followers (+12) · 2 posts (1 failed) · 2 comment replies · 2 DM replies · 3 DMs received · 1 spam hidden/deleted");
+  assert.ok(reportText("monthly", { ...c, dmsReceived: 0, followersStart: null, followersEnd: null }).startsWith("Last month: 2 posts"));
 });

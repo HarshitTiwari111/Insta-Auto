@@ -12,6 +12,8 @@ import {
   schedulePublish,
   type IgMedia,
   type MaintenanceJob,
+  countActivity,
+  reportText,
   uploadDir,
   uploadedMediaName,
   utcDay,
@@ -35,6 +37,8 @@ export async function processMaintenance(job: Job<MaintenanceJob>): Promise<void
       return cleanup();
     case "snapshot-stats":
       return snapshotStats();
+    case "report":
+      return sendReport(job.data.period);
   }
 }
 
@@ -82,6 +86,28 @@ async function snapshotStats() {
     } catch (err) {
       logger.warn({ err: (err as Error).message, accountId: acc.id }, "stats snapshot failed");
     }
+  }
+}
+
+/** Weekly / monthly summary per account: activity log entry + push notification. */
+async function sendReport(period: "weekly" | "monthly") {
+  const days = period === "weekly" ? 7 : 30;
+  const since = new Date(Date.now() - days * DAY);
+  for (const acc of await prisma.igAccount.findMany()) {
+    const [activity, dmsReceived, stats] = await Promise.all([
+      prisma.activityLog.findMany({ where: { accountId: acc.id, createdAt: { gte: since } }, select: { kind: true } }),
+      prisma.dmMessage.count({ where: { accountId: acc.id, direction: "IN", createdAt: { gte: since } } }),
+      prisma.accountStat.findMany({ where: { accountId: acc.id, day: { gte: utcDay(since) } }, orderBy: { day: "asc" }, select: { followers: true } }),
+    ]);
+    const counts = {
+      ...countActivity(activity.map((a) => a.kind)),
+      dmsReceived,
+      followersStart: stats[0]?.followers ?? null,
+      followersEnd: stats.at(-1)?.followers ?? null,
+    };
+    const text = reportText(period, counts);
+    await log(acc.id, `report.${period}`, { ...counts, text });
+    await notify(`@${acc.username} ${period} report`, text, "/analytics");
   }
 }
 

@@ -266,6 +266,9 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
           />
         )}
         {!(isComment && (d.hideComment || d.deleteComment)) && (
+          <TemplatePicker current={replies} onInsert={(t) => setReplies(replies.trim() ? `${replies.trim()}\n${t}` : t)} />
+        )}
+        {!(isComment && (d.hideComment || d.deleteComment)) && (
           <Field
             label={
               d.aiReply
@@ -287,6 +290,13 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
             value={buttons}
             onChange={setButtons}
             placeholder="Price, Services, Talk to team"
+          />
+        )}
+        {isComment && !d.deleteComment && (
+          <TemplatePicker
+            current={privateReplies}
+            forDm
+            onInsert={(t) => setPrivateReplies(privateReplies.trim() ? `${privateReplies.trim()}\n${t}` : t)}
           />
         )}
         {isComment && !d.deleteComment && (
@@ -357,6 +367,56 @@ function DmMedia({ url, onChange }: { url: string | null; onChange: (u: string |
         </label>
       )}
       {err && <p className="mt-1 text-[14px] text-danger">{err.message}</p>}
+    </div>
+  );
+}
+
+interface MessageTemplate {
+  id: string;
+  name: string;
+  text: string;
+}
+
+/**
+ * Templates library: tap a saved template to add it as one more reply line (one line = one variant).
+ * "Save" stores the box's last line as a new template for every rule.
+ */
+function TemplatePicker({ current, onInsert, forDm }: { current: string; onInsert: (text: string) => void; forDm?: boolean }) {
+  const qc = useQueryClient();
+  const list = useQuery({ queryKey: ["templates"], queryFn: () => api<MessageTemplate[]>("/templates") });
+  const add = useMutation({
+    mutationFn: (body: { name: string; text: string }) => api("/templates", { method: "POST", json: body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
+  });
+  const drop = useMutation({
+    mutationFn: (id: string) => api(`/templates/${id}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
+  });
+  const last = current.split("\n").map((l) => l.trim()).filter(Boolean).at(-1);
+  return (
+    <div className="px-4 pt-2.5">
+      <span className="mb-1 block text-[13px] text-muted">{forDm ? "Templates for the DM" : "Templates library"} (tap to add)</span>
+      <div className="flex flex-wrap gap-2">
+        {list.data?.map((t) => (
+          <span key={t.id} className="flex items-center gap-1 rounded-full bg-line px-3 py-1.5 text-[14px]" title={t.text}>
+            <button onClick={() => onInsert(t.text)}>{t.name}</button>
+            <button aria-label={`Delete ${t.name}`} className="text-muted" onClick={() => confirm(`Delete template “${t.name}”?`) && drop.mutate(t.id)}>
+              ✕
+            </button>
+          </span>
+        ))}
+        <button
+          className="rounded-full border border-line px-3 py-1.5 text-[14px] text-accent"
+          onClick={() => {
+            if (!last) return alert("Write a reply in the box below first, then save it as a template.");
+            const name = prompt("Template name:", last.slice(0, 30))?.trim();
+            if (name) add.mutate({ name, text: last });
+          }}
+        >
+          ＋ Save last line
+        </button>
+      </div>
+      {(add.error || drop.error) && <p className="mt-1 text-[13px] text-danger">{((add.error ?? drop.error) as Error).message}</p>}
     </div>
   );
 }

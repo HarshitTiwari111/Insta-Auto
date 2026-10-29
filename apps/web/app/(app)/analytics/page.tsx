@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { AccountSwitcher, useAccounts } from "@/components/useAccounts";
 import { Button, Empty, ErrorNote, Group, Header, Row, Segmented } from "@/components/ui";
@@ -136,6 +136,7 @@ export default function AnalyticsPage() {
             title="Best time to post"
             footer={`From your own posts so far (${a.timezone}). Gets more reliable as you post more, at different times.`}
           >
+            <AiBestTime accountId={selected.id} />
             {a.bestTimes.length === 0 && <Row title="Not enough posts yet" />}
             {a.bestTimes.map((t, i) => (
               <Row
@@ -242,6 +243,34 @@ function Competitor({ accountId }: { accountId: string }) {
         </>
       )}
     </Group>
+  );
+}
+
+/** Asks Gemini for the 3 best slots, using this account's own post results. */
+function AiBestTime({ accountId }: { accountId: string }) {
+  const ai = useMutation({
+    mutationFn: () => api<{ slots: { day: string; time: string; reason: string }[]; tip: string }>("/ai/best-time", { method: "POST", json: { accountId } }),
+  });
+  return (
+    <div className="px-4 py-3">
+      <button className="text-[16px] text-accent disabled:opacity-40" disabled={ai.isPending} onClick={() => ai.mutate()}>
+        {ai.isPending ? "✨ Thinking…" : ai.data ? "✨ Ask AI again" : "✨ Ask AI for the best time"}
+      </button>
+      {ai.error && <p className="mt-1 text-[14px] text-danger">{(ai.error as Error).message}</p>}
+      {ai.data && (
+        <div className="mt-2 space-y-2">
+          {ai.data.slots.map((s, i) => (
+            <div key={i}>
+              <div className="text-[16px] font-semibold">
+                {i + 1}. {s.day} · {s.time}
+              </div>
+              <div className="text-[14px] text-muted">{s.reason}</div>
+            </div>
+          ))}
+          {ai.data.tip && <p className="text-[14px]">💡 {ai.data.tip}</p>}
+        </div>
+      )}
+    </div>
   );
 }
 

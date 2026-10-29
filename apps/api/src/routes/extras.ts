@@ -2,7 +2,9 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
   AiError,
+  aiBestTimes,
   bestPosts,
+  localSlot,
   cached,
   classifySentiment,
   contentIdeas,
@@ -26,6 +28,11 @@ const CaptionBody = z.object({
   accountId: z.string().min(1),
   notes: z.string().max(2000).default(""),
   imageUrl: z.string().url().optional(),
+});
+
+const TemplateBody = z.object({
+  name: z.string().trim().min(1).max(60),
+  text: z.string().trim().min(1).max(1000),
 });
 
 const HashtagBody = z.object({
@@ -57,6 +64,7 @@ const RestoreBody = z.object({
     version: z.literal(1),
     rules: z.array(RuleExport).max(500),
     hashtagSets: z.array(HashtagBody).max(200).default([]),
+    templates: z.array(TemplateBody).max(500).default([]),
     settings: z
       .object({
         dailyActionLimit: z.number().int().min(0).max(100_000),
@@ -188,6 +196,50 @@ export default async function extraRoutes(app: FastifyInstance) {
     }
   });
 
+  /** AI best posting times from this account's post history. */
+  app.post("/ai/best-time", async (req, reply) => {
+    const body = z.object({ accountId: z.string().min(1) }).safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: "invalid_body" });
+    const e = env();
+    if (!e.GEMINI_API_KEY) return reply.code(400).send({ error: "AI is off: set GEMINI_API_KEY in the server .env" });
+    const ig = await igClientFor(body.data.accountId);
+    if (!ig) return reply.code(404).send({ error: "not_found" });
+    const [media, acc, info] = await Promise.all([
+      cached<IgMedia[]>(redis(), keys.media(body.data.accountId), 300, async () => (await ig.listMedia(25)).data),
+      prisma.igAccount.findUnique({ where: { id: body.data.accountId }, select: { timezone: true } }),
+      prisma.automationRule.findFirst({ where: { accountId: body.data.accountId, aiInstructions: { not: null } }, select: { aiInstructions: true } }),
+    ]);
+    const timezone = acc?.timezone ?? "Asia/Kolkata";
+    const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const posts = media
+      .filter((m) => m.timestamp)
+      .map((m) => {
+        const s = localSlot(m.timestamp!, timezone);
+        return { weekday: DAYS[s.weekday] ?? "?", hour: s.hour, likes: m.like_count ?? 0, comments: m.comments_count ?? 0, type: m.media_type ?? "IMAGE" };
+      });
+    try {
+      return await aiBestTimes({ apiKey: e.GEMINI_API_KEY, model: e.GEMINI_MODEL, timezone, businessInfo: info?.aiInstructions ?? "", posts });
+    } catch (err) {
+      if (err instanceof AiError) return reply.code(502).send({ error: `${err.message}. Try again in a minute.` });
+      throw err;
+    }
+  });
+
+  // ---------- Message templates library (team-wide) ----------
+
+  app.get("/templates", async () => prisma.messageTemplate.findMany({ orderBy: { createdAt: "asc" } }));
+
+  app.post("/templates", async (req, reply) => {
+    const body = TemplateBody.safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: body.error.issues[0]?.message ?? "invalid_body" });
+    return prisma.messageTemplate.create({ data: body.data });
+  });
+
+  app.delete<{ Params: { id: string } }>("/templates/:id", async (req) => {
+    await prisma.messageTemplate.delete({ where: { id: req.params.id } });
+    return { ok: true };
+  });
+
   // ---------- Hashtag sets (team-wide) ----------
 
   app.get("/hashtag-sets", async () => prisma.hashtagSet.findMany({ orderBy: { createdAt: "asc" } }));
@@ -210,6 +262,7 @@ export default async function extraRoutes(app: FastifyInstance) {
     if (!acc) return reply.code(404).send({ error: "not_found" });
     const rules = await prisma.automationRule.findMany({ where: { accountId: acc.id }, orderBy: { priority: "asc" } });
     const hashtagSets = await prisma.hashtagSet.findMany({ orderBy: { createdAt: "asc" } });
+    const templates = await prisma.messageTemplate.findMany({ orderBy: { createdAt: "asc" } });
     return {
       version: 1 as const,
       exportedAt: new Date().toISOString(),
@@ -225,6 +278,7 @@ export default async function extraRoutes(app: FastifyInstance) {
       },
       rules: rules.map((r) => RuleExport.parse(r)),
       hashtagSets: hashtagSets.map(({ name, tags }) => ({ name, tags })),
+      templates: templates.map(({ name, text }) => ({ name, text })),
     };
   });
 
@@ -244,9 +298,13 @@ export default async function extraRoutes(app: FastifyInstance) {
     const newSets = backup.hashtagSets.filter((s) => !existingSets.has(s.name));
     if (newSets.length) await prisma.hashtagSet.createMany({ data: newSets });
 
+    const existingTemplates = new Set((await prisma.messageTemplate.findMany({ select: { name: true } })).map((t) => t.name));
+    const newTemplates = backup.templates.filter((t) => !existingTemplates.has(t.name));
+    if (newTemplates.length) await prisma.messageTemplate.createMany({ data: newTemplates });
+
     if (backup.settings) await prisma.igAccount.update({ where: { id: accountId }, data: backup.settings });
     await invalidate(redis(), keys.rules(accountId, "COMMENT"), keys.rules(accountId, "DM"));
     await log(accountId, "backup.restored", { by: req.session!.email, rules: newRules.length, hashtagSets: newSets.length });
-    return { rules: newRules.length, skippedRules: backup.rules.length - newRules.length, hashtagSets: newSets.length };
+    return { rules: newRules.length, skippedRules: backup.rules.length - newRules.length, hashtagSets: newSets.length, templates: newTemplates.length };
   });
 }

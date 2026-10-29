@@ -20,7 +20,8 @@ export type MaintenanceJob =
   | { task: "sweep-posts" }
   | { task: "poll-comments" }
   | { task: "cleanup" }
-  | { task: "snapshot-stats" };
+  | { task: "snapshot-stats" }
+  | { task: "report"; period: "weekly" | "monthly" };
 export interface NotifyJob {
   title: string;
   body: string;

@@ -210,6 +210,14 @@ model MediaFile {
   createdAt DateTime @default(now())
 }
 
+/// Reusable reply texts (DM / comment replies), inserted into rules from a library
+model MessageTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  text      String
+  createdAt DateTime @default(now())
+}
+
 /// Saved hashtag groups, inserted into captions / first comments
 model HashtagSet {
   id        String   @id @default(cuid())
