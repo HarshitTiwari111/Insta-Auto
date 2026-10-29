@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, timeAgo } from "@/lib/api";
 import { AccountSwitcher, useAccounts } from "@/components/useAccounts";
 import { Button, Empty, ErrorNote, Group, Header, Segmented } from "@/components/ui";
+import { PostViewer, type ViewPost } from "@/components/PostViewer";
 
 interface ModComment {
   id: string;
@@ -35,6 +36,7 @@ export default function CommentsPage() {
   const [labels, setLabels] = useState<Record<string, Sentiment>>({});
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [viewing, setViewing] = useState<ViewPost | null>(null);
 
   const comments = useQuery({
     queryKey: ["comments", selected?.id],
@@ -128,9 +130,13 @@ export default function CommentsPage() {
           {list.map((c) => (
             <div key={c.id} className={`px-4 py-3 ${c.hidden ? "opacity-60" : ""}`}>
               <div className="flex gap-3">
-                <a href={c.permalink ?? undefined} target="_blank" rel="noreferrer" className="h-10 w-10 shrink-0 overflow-hidden rounded-md bg-fill">
+                <button
+                  aria-label="Open post"
+                  onClick={() => setViewing({ id: c.mediaId, image: c.mediaThumb, caption: c.mediaCaption, permalink: c.permalink })}
+                  className="press h-10 w-10 shrink-0 overflow-hidden rounded-md bg-fill"
+                >
                   {c.mediaThumb && <img src={c.mediaThumb} alt="" className="h-full w-full object-cover" loading="lazy" />}
-                </a>
+                </button>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 text-[14px]">
                     <span className="font-semibold">@{c.username ?? "unknown"}</span>
@@ -189,6 +195,7 @@ export default function CommentsPage() {
           ))}
         </Group>
       )}
+      {viewing && <PostViewer accountId={selected.id} post={viewing} onClose={() => setViewing(null)} />}
     </>
   );
 }

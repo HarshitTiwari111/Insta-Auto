@@ -6,6 +6,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { AccountSwitcher, useAccounts } from "@/components/useAccounts";
 import { Button, Empty, ErrorNote, Group, Header, Row, Segmented } from "@/components/ui";
+import { PostViewer, type ViewPost } from "@/components/PostViewer";
 
 interface PostStat {
   id: string;
@@ -41,6 +42,7 @@ interface Analytics {
 export default function AnalyticsPage() {
   const { accounts, selected, select } = useAccounts();
   const [days, setDays] = useState<"7" | "30" | "90">("30");
+  const [viewing, setViewing] = useState<ViewPost | null>(null);
   const data = useQuery({
     queryKey: ["analytics", selected?.id, days],
     queryFn: () => api<Analytics>(`/accounts/${selected!.id}/analytics?days=${days}`),
@@ -150,7 +152,13 @@ export default function AnalyticsPage() {
           <Group title="Best performing posts" footer="Engagement rate = (likes + comments) ÷ followers. Latest 25 posts.">
             {a.best.length === 0 && <Row title="No posts yet" />}
             {a.best.map((p, i) => (
-              <a key={p.id} href={p.permalink ?? undefined} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-4 py-2.5">
+              <button
+                key={p.id}
+                onClick={() =>
+                  setViewing({ id: p.id, image: p.thumbnail, caption: p.caption, permalink: p.permalink, likes: p.likes, comments: p.comments, timestamp: p.timestamp })
+                }
+                className="press flex w-full items-center gap-3 px-4 py-2.5 text-left"
+              >
                 <span className="w-4 text-[15px] text-muted">{i + 1}</span>
                 <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-fill">
                   {p.thumbnail && <img src={p.thumbnail} alt="" className="h-full w-full object-cover" loading="lazy" />}
@@ -163,7 +171,7 @@ export default function AnalyticsPage() {
                   </div>
                 </div>
                 <span className="text-[15px] font-semibold text-accent">{p.engagementRate}%</span>
-              </a>
+              </button>
             ))}
           </Group>
 
@@ -180,6 +188,7 @@ export default function AnalyticsPage() {
           </div>
         </>
       )}
+      {viewing && <PostViewer accountId={selected.id} post={viewing} onClose={() => setViewing(null)} />}
     </>
   );
 }

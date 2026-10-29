@@ -54,6 +54,23 @@ export default async function commentRoutes(app: FastifyInstance) {
     });
   });
 
+  /** All comments on one post (in-app post viewer). Not cached: opened rarely, must show fresh state. */
+  app.get<{ Params: { id: string; mediaId: string } }>("/accounts/:id/media/:mediaId/comments", async (req, reply) => {
+    const ig = await igClientFor(req.params.id);
+    if (!ig) return reply.code(404).send({ error: "not_found" });
+    const { data } = await ig.listComments(req.params.mediaId, 100);
+    return (data as IgComment[])
+      .map((c) => ({
+        id: c.id,
+        text: c.text ?? "",
+        username: c.from?.username ?? c.username ?? null,
+        timestamp: c.timestamp ?? null,
+        hidden: Boolean(c.hidden),
+        likes: c.like_count ?? 0,
+      }))
+      .sort((a, b) => (a.timestamp ?? "").localeCompare(b.timestamp ?? ""));
+  });
+
   app.post<{ Params: { commentId: string } }>("/comments/:commentId/hide", async (req, reply) => {
     const body = HideBody.safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: "invalid_body" });

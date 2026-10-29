@@ -6,6 +6,7 @@ import { uploadMedia } from "@/lib/upload";
 import { api, type Media, type Post } from "@/lib/api";
 import { AccountSwitcher, useAccounts } from "@/components/useAccounts";
 import { Badge, Button, Empty, ErrorNote, Field, Group, Header, Row, Segmented, Sheet } from "@/components/ui";
+import { PostViewer, type ViewPost } from "@/components/PostViewer";
 
 const STATUS_TONE = { DRAFT: "muted", PENDING: "accent", PUBLISHING: "accent", PUBLISHED: "ok", FAILED: "danger", CANCELLED: "muted" } as const;
 
@@ -16,6 +17,7 @@ export default function PostsPage() {
   const [editing, setEditing] = useState<Post | "new" | null>(null);
   const [ideaCaption, setIdeaCaption] = useState<string | undefined>(undefined);
   const [showIdeas, setShowIdeas] = useState(false);
+  const [viewing, setViewing] = useState<ViewPost | null>(null);
   const [view, setView] = useState<"scheduled" | "calendar" | "drafts" | "live">("scheduled");
 
   const posts = useQuery({
@@ -107,18 +109,35 @@ export default function PostsPage() {
       {view === "live" && (
         <div className="mx-4 grid grid-cols-3 gap-1">
           {media.data?.map((m) => (
-            <a key={m.id} href={m.permalink} target="_blank" rel="noreferrer" className="relative aspect-square overflow-hidden rounded-md bg-card">
+            <button
+              key={m.id}
+              onClick={() =>
+                setViewing({
+                  id: m.id,
+                  image: m.thumbnail_url ?? m.media_url ?? null,
+                  videoUrl: m.media_type === "VIDEO" ? m.media_url : null,
+                  caption: m.caption,
+                  permalink: m.permalink,
+                  likes: m.like_count ?? 0,
+                  comments: m.comments_count ?? 0,
+                  timestamp: m.timestamp,
+                })
+              }
+              className="press relative aspect-square overflow-hidden rounded-md bg-card"
+            >
               {(m.thumbnail_url ?? m.media_url) && (
                 <img src={m.thumbnail_url ?? m.media_url} alt="" className="h-full w-full object-cover" loading="lazy" />
               )}
               <span className="absolute inset-x-0 bottom-0 bg-black/50 px-1.5 py-0.5 text-[11px] text-white">
                 ♥ {m.like_count ?? 0} · 💬 {m.comments_count ?? 0}
               </span>
-            </a>
+            </button>
           ))}
           {media.isLoading && <p className="col-span-3 py-8 text-center text-muted">Loading…</p>}
         </div>
       )}
+
+      {viewing && <PostViewer accountId={selected.id} post={viewing} onClose={() => setViewing(null)} />}
 
       {editing && (
         <PostEditor
