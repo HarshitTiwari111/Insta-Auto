@@ -175,6 +175,14 @@ export class IgClient {
     });
   }
 
+  /** Top-level comments plus their replies (our own auto-replies live there). */
+  listCommentsWithReplies(mediaId: string, limit = 50) {
+    return this.request<{ data: (IgComment & { replies?: { data: IgComment[] } })[] }>("GET", `${mediaId}/comments`, {
+      fields: "id,text,timestamp,username,from,hidden,like_count,replies{id,text,timestamp,username,from,hidden,like_count}",
+      limit,
+    });
+  }
+
   replyToComment(commentId: string, message: string) {
     return this.request<{ id: string }>("POST", `${commentId}/replies`, { message });
   }
