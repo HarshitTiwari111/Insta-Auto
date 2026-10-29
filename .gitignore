@@ -1,0 +1,16 @@
+node_modules
+.env
+.env.local
+.next
+dist
+packages/db/src/generated
+*.log
+.DS_Store
+next-env.d.ts
+*.tsbuildinfo
+dump.rdb
+docker-compose.override.yml
+LOCAL_LOGIN.txt
+uploads/
+_to_delete/
+.claude/

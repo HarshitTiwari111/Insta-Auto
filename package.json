@@ -1,0 +1,27 @@
+{
+  "name": "instaauto",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "db:generate": "npm run generate -w @instaauto/db",
+    "db:migrate": "npm run migrate -w @instaauto/db",
+    "db:deploy": "npm run deploy -w @instaauto/db",
+    "create-user": "npm run create-user -w @instaauto/api --",
+    "dev:api": "npm run dev -w @instaauto/api",
+    "dev:worker": "npm run dev -w @instaauto/worker",
+    "dev:web": "npm run dev -w @instaauto/web",
+    "start:api": "npm run start -w @instaauto/api",
+    "start:worker": "npm run start -w @instaauto/worker",
+    "build:web": "npm run build -w @instaauto/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "postinstall": "npm run generate -w @instaauto/db"
+  }
+}

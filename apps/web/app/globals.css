@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+/* iOS-like system look, light + dark */
+:root {
+  --bg: #f2f2f7;
+  --card: #ffffff;
+  --text: #000000;
+  --muted: #8e8e93;
+  --line: rgba(60, 60, 67, 0.18);
+  --accent: #007aff;
+  --danger: #ff3b30;
+  --ok: #34c759;
+  --bar: rgba(249, 249, 249, 0.85);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --card: #1c1c1e;
+    --text: #ffffff;
+    --muted: #8e8e93;
+    --line: rgba(84, 84, 88, 0.6);
+    --accent: #0a84ff;
+    --danger: #ff453a;
+    --ok: #30d158;
+    --bar: rgba(22, 22, 24, 0.85);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+  --color-bar: var(--bar);
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior-y: none;
+}
+
+/* Inputs >= 16px so iOS Safari doesn't zoom on focus */
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.press {
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+.press:active {
+  transform: scale(0.97);
+  opacity: 0.7;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.sheet {
+  animation: sheet-up 260ms cubic-bezier(0.32, 0.72, 0, 1);
+}

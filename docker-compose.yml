@@ -1,0 +1,26 @@
+# Local development only: Postgres + Redis.
+# Run: docker compose up -d
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: instaauto
+      POSTGRES_PASSWORD: instaauto
+      POSTGRES_DB: instaauto
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    # AOF persistence so queued/delayed jobs survive a restart
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+
+volumes:
+  pgdata:
+  redisdata:

@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+.env
+.env.*
+!.env.example
+**/.next
+uploads
+_to_delete
+*.log
+.git
+LOCAL_LOGIN.txt
+packages/db/src/generated
