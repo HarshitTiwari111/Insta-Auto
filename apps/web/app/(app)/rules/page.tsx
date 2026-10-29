@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { uploadMedia } from "@/lib/upload";
 import { api, type Media, type Rule } from "@/lib/api";
 import { AccountSwitcher, useAccounts } from "@/components/useAccounts";
 import { Button, Empty, ErrorNote, Field, Group, Header, Row, Segmented, Sheet, Toggle } from "@/components/ui";
@@ -345,9 +346,7 @@ function DmMedia({ url, onChange }: { url: string | null; onChange: (u: string |
               setBusy(true);
               setErr(null);
               try {
-                const form = new FormData();
-                form.append("file", f);
-                onChange((await api<{ url: string }>("/media/upload", { method: "POST", body: form })).url);
+                onChange((await uploadMedia(f)).url);
               } catch (x) {
                 setErr(x as Error);
               } finally {

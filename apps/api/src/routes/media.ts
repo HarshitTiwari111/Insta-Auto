@@ -1,21 +1,20 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import multipart from "@fastify/multipart";
 import sharp from "sharp";
 import heicConvert from "heic-convert";
-import { randomBytes } from "node:crypto";
-import { createReadStream, createWriteStream } from "node:fs";
-import { mkdir, stat, unlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { pipeline } from "node:stream/promises";
-import { MEDIA_NAME_RE, publicMediaUrl, uploadDir } from "@instaauto/core";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { env, MEDIA_NAME_RE, publicMediaUrl } from "@instaauto/core";
 import { requireAuth } from "../plugins/auth.js";
+import { readMedia, saveBuffer, saveStream } from "../media-store.js";
 
 /** Phone videos can be large; Meta's own limits are checked when the container is created. */
 const MAX_UPLOAD_BYTES = 300 * 1024 * 1024;
+/** In the database (free hosting) keep videos smaller: free Postgres plans have ~0.5 GB in total. */
+const MAX_DB_VIDEO_BYTES = 50 * 1024 * 1024;
 /** Meta Content Publishing: images must be JPEG, max 8 MB. */
 const MAX_JPEG_BYTES = 8 * 1024 * 1024;
 const VIDEO_EXT: Record<string, string> = { "video/mp4": "mp4", "video/quicktime": "mov" };
-const CONTENT_TYPE: Record<string, string> = { jpg: "image/jpeg", mp4: "video/mp4", mov: "video/quicktime" };
+const UPLOAD_TOKEN_TTL_MS = 10 * 60_000;
 
 const newName = (ext: string) => `${randomBytes(16).toString("hex")}.${ext}`;
 
@@ -25,30 +24,55 @@ function isHeic(buf: Buffer): boolean {
   return ["heic", "heix", "hevc", "hevx", "heim", "heis", "mif1", "msf1"].includes(buf.toString("ascii", 8, 12));
 }
 
+/**
+ * Short-lived upload token, so the PWA can send big files straight to the API host instead of through
+ * the web host's proxy (which may cap request bodies). Format: <userId>.<expiresMs>.<hmac>
+ */
+const sign = (payload: string) => createHmac("sha256", env().TOKEN_ENC_KEY).update(`upload:${payload}`).digest("base64url");
+function makeUploadToken(userId: string): string {
+  const payload = `${userId}.${Date.now() + UPLOAD_TOKEN_TTL_MS}`;
+  return `${payload}.${sign(payload)}`;
+}
+function validUploadToken(token: string | undefined): boolean {
+  const i = token?.lastIndexOf(".") ?? -1;
+  if (!token || i < 0) return false;
+  const payload = token.slice(0, i);
+  const sig = Buffer.from(token.slice(i + 1));
+  const want = Buffer.from(sign(payload));
+  if (sig.length !== want.length || !timingSafeEqual(sig, want)) return false;
+  return Number(payload.split(".")[1]) > Date.now();
+}
+
+/** The upload response is read by the PWA from another origin (APP_URL). Multipart POST needs no preflight. */
+function allowApp(reply: FastifyReply) {
+  reply.header("Access-Control-Allow-Origin", new URL(env().APP_URL).origin).header("Vary", "Origin");
+}
+
+async function uploadAuth(req: FastifyRequest<{ Querystring: { t?: string } }>, reply: FastifyReply) {
+  allowApp(reply);
+  if (validUploadToken(req.query.t)) return;
+  return requireAuth(req, reply);
+}
+
 export default async function mediaRoutes(app: FastifyInstance) {
   await app.register(multipart, { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1, fields: 0 } });
 
+  /** Where the PWA should POST its file (API host + one-time-ish token). */
+  app.get("/media/upload-url", { preHandler: requireAuth }, async (req) => ({
+    url: `${env().API_PUBLIC_URL}/media/upload?t=${encodeURIComponent(makeUploadToken(req.session!.userId))}`,
+  }));
+
   /** Upload one photo or video. Photos are converted to JPEG (EXIF rotation applied). */
-  app.post("/media/upload", { preHandler: requireAuth }, async (req, reply) => {
+  app.post<{ Querystring: { t?: string } }>("/media/upload", { preHandler: uploadAuth }, async (req, reply) => {
     const file = await req.file();
     if (!file) return reply.code(400).send({ error: "no file" });
-    const dir = uploadDir();
-    await mkdir(dir, { recursive: true });
 
     const videoExt = VIDEO_EXT[file.mimetype];
     if (videoExt) {
       const name = newName(videoExt);
-      const path = join(dir, name);
-      try {
-        await pipeline(file.file, createWriteStream(path));
-      } catch (err) {
-        await unlink(path).catch(() => undefined); // client aborted mid-upload: don't keep half a file
-        throw err;
-      }
-      if (file.file.truncated) {
-        await unlink(path).catch(() => undefined);
-        return reply.code(413).send({ error: "Video is larger than 300 MB" });
-      }
+      const limit = env().UPLOAD_STORAGE === "db" ? MAX_DB_VIDEO_BYTES : MAX_UPLOAD_BYTES;
+      const ok = await saveStream(name, file.file, () => file.file.truncated, limit);
+      if (!ok) return reply.code(413).send({ error: `Video is larger than ${Math.round(limit / 1024 / 1024)} MB` });
       return { url: publicMediaUrl(name), type: "video" as const };
     }
 
@@ -71,7 +95,7 @@ export default async function mediaRoutes(app: FastifyInstance) {
     }
     if (jpeg.length > MAX_JPEG_BYTES) return reply.code(413).send({ error: "Photo is too large after conversion (max 8 MB)" });
     const name = newName("jpg");
-    await writeFile(join(dir, name), jpeg);
+    await saveBuffer(name, jpeg);
     return { url: publicMediaUrl(name), type: "image" as const };
   });
 
@@ -79,15 +103,13 @@ export default async function mediaRoutes(app: FastifyInstance) {
   app.get<{ Params: { name: string } }>("/media/:name", { config: { rateLimit: false } }, async (req, reply) => {
     const { name } = req.params;
     if (!MEDIA_NAME_RE.test(name)) return reply.code(404).send({ error: "not_found" });
-    const path = join(uploadDir(), name);
-    const info = await stat(path).catch(() => null);
-    if (!info?.isFile()) return reply.code(404).send({ error: "not_found" });
-    const ext = name.split(".").pop()!;
+    const media = await readMedia(name);
+    if (!media) return reply.code(404).send({ error: "not_found" });
     return reply
-      .header("Content-Type", CONTENT_TYPE[ext] ?? "application/octet-stream")
-      .header("Content-Length", info.size)
+      .header("Content-Type", media.mimeType)
+      .header("Content-Length", media.size)
       .header("Cache-Control", "public, max-age=86400")
       .header("Cross-Origin-Resource-Policy", "cross-origin") // helmet default (same-origin) would block PWA previews
-      .send(createReadStream(path));
+      .send(media.body);
   });
 }

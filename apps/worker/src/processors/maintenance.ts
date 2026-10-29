@@ -169,25 +169,33 @@ async function cleanup() {
 }
 
 /**
- * Uploaded media is only needed until Meta has fetched it. Delete files older than 7 days
- * unless a draft / scheduled / publishing post still points at them.
+ * Uploaded media is only needed until Meta has fetched it. Delete uploads older than 7 days unless a
+ * draft / scheduled / publishing post or a DM rule (photo/video reply) still points at them.
+ * Works for both storages: disk (UPLOAD_DIR) and database (UPLOAD_STORAGE=db).
  */
 async function cleanupUploads(): Promise<number> {
+  const [open, rules] = await Promise.all([
+    prisma.scheduledPost.findMany({ where: { status: { in: ["DRAFT", "PENDING", "PUBLISHING"] } }, select: { mediaUrls: true } }),
+    prisma.automationRule.findMany({ where: { replyMediaUrl: { not: null } }, select: { replyMediaUrl: true } }),
+  ]);
+  const inUse = new Set(
+    [...open.flatMap((p) => p.mediaUrls), ...rules.map((r) => r.replyMediaUrl!)].map(uploadedMediaName).filter(Boolean) as string[],
+  );
+  const cutoff = new Date(Date.now() - 7 * DAY);
+
+  if (env().UPLOAD_STORAGE === "db") {
+    const r = await prisma.mediaFile.deleteMany({ where: { createdAt: { lt: cutoff }, name: { notIn: [...inUse] } } });
+    return r.count;
+  }
+
   const dir = uploadDir();
   const names = await readdir(dir).catch(() => [] as string[]);
-  if (!names.length) return 0;
-  const open = await prisma.scheduledPost.findMany({
-    where: { status: { in: ["DRAFT", "PENDING", "PUBLISHING"] } },
-    select: { mediaUrls: true },
-  });
-  const inUse = new Set(open.flatMap((p) => p.mediaUrls.map(uploadedMediaName)).filter(Boolean));
-  const cutoff = Date.now() - 7 * DAY;
   let removed = 0;
   for (const name of names) {
     if (inUse.has(name)) continue;
     const path = join(dir, name);
     const info = await stat(path).catch(() => null);
-    if (info?.isFile() && info.mtimeMs < cutoff) {
+    if (info?.isFile() && info.mtimeMs < cutoff.getTime()) {
       await unlink(path).catch(() => undefined);
       removed++;
     }

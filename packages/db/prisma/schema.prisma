@@ -200,6 +200,16 @@ model ScheduledPost {
   @@index([accountId, scheduledAt])
 }
 
+/// Uploaded media kept in the database (UPLOAD_STORAGE=db), for hosts without a persistent disk
+model MediaFile {
+  /// Same random name as in the public URL: <32 hex>.jpg|mp4|mov
+  name      String   @id
+  mimeType  String
+  data      Bytes
+  size      Int
+  createdAt DateTime @default(now())
+}
+
 /// Saved hashtag groups, inserted into captions / first comments
 model HashtagSet {
   id        String   @id @default(cuid())

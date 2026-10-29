@@ -1,7 +1,5 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import {
   AiError,
   bestPosts,
@@ -15,7 +13,6 @@ import {
   keys,
   postStats,
   redis,
-  uploadDir,
   uploadedMediaName,
   type IgMedia,
   type IgProfile,
@@ -23,6 +20,7 @@ import {
 import { prisma } from "@instaauto/db";
 import { requireAuth } from "../plugins/auth.js";
 import { igClientFor, log } from "../ctx.js";
+import { readMediaBuffer } from "../media-store.js";
 
 const CaptionBody = z.object({
   accountId: z.string().min(1),
@@ -86,7 +84,7 @@ export default async function extraRoutes(app: FastifyInstance) {
     let image: { mimeType: string; base64: string } | undefined;
     const name = body.data.imageUrl ? uploadedMediaName(body.data.imageUrl) : null;
     if (name?.endsWith(".jpg")) {
-      const buf = await readFile(join(uploadDir(), name)).catch(() => null);
+      const buf = await readMediaBuffer(name);
       if (buf) image = { mimeType: "image/jpeg", base64: buf.toString("base64") };
     }
     const withInfo = await prisma.automationRule.findFirst({

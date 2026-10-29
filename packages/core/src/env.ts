@@ -29,6 +29,11 @@ const schema = z.object({
   GEMINI_MODEL: z.string().min(1).default("gemini-flash-lite-latest"),
   /** Where uploaded media is stored. Empty = <repo>/uploads */
   UPLOAD_DIR: z.string().optional().default(""),
+  /** disk = UPLOAD_DIR; db = Postgres (free hosts without a persistent disk) */
+  UPLOAD_STORAGE: z.enum(["disk", "db"]).default("disk"),
+  /** Creates this admin on startup when there are no users yet (hosts without a shell) */
+  BOOTSTRAP_ADMIN_EMAIL: z.string().optional().default(""),
+  BOOTSTRAP_ADMIN_PASSWORD: z.string().optional().default(""),
 });
 
 export type Env = z.infer<typeof schema>;

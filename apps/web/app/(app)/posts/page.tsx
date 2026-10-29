@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { uploadMedia } from "@/lib/upload";
 import { api, type Media, type Post } from "@/lib/api";
 import { AccountSwitcher, useAccounts } from "@/components/useAccounts";
 import { Badge, Button, Empty, ErrorNote, Field, Group, Header, Row, Segmented, Sheet } from "@/components/ui";
@@ -420,10 +421,7 @@ function PostEditor({
       const added: string[] = [];
       for (const [i, f] of [...files].entries()) {
         setUploading(`Uploading ${i + 1}/${files.length}…`);
-        const form = new FormData();
-        form.append("file", f);
-        const r = await api<{ url: string }>("/media/upload", { method: "POST", body: form });
-        added.push(r.url);
+        added.push((await uploadMedia(f)).url);
       }
       const keep = type === "CAROUSEL" ? urlList : [];
       setUrls([...keep, ...added].join("\n"));
