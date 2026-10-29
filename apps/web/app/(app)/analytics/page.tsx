@@ -152,7 +152,7 @@ export default function AnalyticsPage() {
             {a.best.map((p, i) => (
               <a key={p.id} href={p.permalink ?? undefined} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-4 py-2.5">
                 <span className="w-4 text-[15px] text-muted">{i + 1}</span>
-                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-line">
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-fill">
                   {p.thumbnail && <img src={p.thumbnail} alt="" className="h-full w-full object-cover" loading="lazy" />}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -223,7 +223,7 @@ function Competitor({ accountId }: { accountId: string }) {
         }}
       >
         <input
-          className="min-w-0 flex-1 rounded-lg bg-line px-3 py-2 text-[16px] outline-none"
+          className="min-w-0 flex-1 rounded-lg bg-fill px-3 py-2 text-[16px] outline-none"
           placeholder="@competitor_username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
@@ -280,7 +280,7 @@ const slot = (h: number) => `${String(h).padStart(2, "0")}:00–${String((h + 1)
 function Stat({ label, value, tone }: { label: string; value: string; tone?: "ok" | "danger" }) {
   const c = tone === "ok" ? "text-ok" : tone === "danger" ? "text-danger" : "";
   return (
-    <div className="rounded-xl bg-card p-3">
+    <div className="rounded-xl border border-card-border bg-card p-3">
       <div className={`text-[24px] font-bold ${c}`}>{value}</div>
       <div className="text-[12px] text-muted">{label}</div>
     </div>
@@ -289,7 +289,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "ok
 
 /** Small dependency-free line chart. */
 function Sparkline({ values }: { values: number[] }) {
-  if (values.length < 2) return <div className="h-24 rounded-lg bg-line/40" />;
+  if (values.length < 2) return <div className="h-24 rounded-lg bg-fill" />;
   const w = 300;
   const h = 96;
   const min = Math.min(...values);

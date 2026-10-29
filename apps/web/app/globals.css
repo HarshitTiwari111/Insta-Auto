@@ -1,34 +1,41 @@
 @import "tailwindcss";
 
-/* iOS-like system look, light + dark */
+/* Instagram look (light + dark). Values match Instagram's own UI colors. */
 :root {
-  --bg: #f2f2f7;
+  --bg: #fafafa;
   --card: #ffffff;
+  --card-border: #dbdbdb;
+  --fill: #efefef; /* chips, segmented track, inputs, pressed rows */
   --text: #000000;
-  --muted: #8e8e93;
-  --line: rgba(60, 60, 67, 0.18);
-  --accent: #007aff;
-  --danger: #ff3b30;
-  --ok: #34c759;
-  --bar: rgba(249, 249, 249, 0.85);
+  --muted: #737373;
+  --line: #dbdbdb; /* dividers */
+  --accent: #0095f6; /* Instagram blue */
+  --danger: #ed4956;
+  --ok: #58c322;
+  --bar: rgba(255, 255, 255, 0.92);
+  --ig-gradient: linear-gradient(45deg, #feda75 0%, #fa7e1e 25%, #d62976 50%, #962fbf 75%, #4f5bd5 100%);
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #000000;
-    --card: #1c1c1e;
-    --text: #ffffff;
-    --muted: #8e8e93;
-    --line: rgba(84, 84, 88, 0.6);
-    --accent: #0a84ff;
-    --danger: #ff453a;
-    --ok: #30d158;
-    --bar: rgba(22, 22, 24, 0.85);
+    --card: #121212;
+    --card-border: #262626;
+    --fill: #262626;
+    --text: #f5f5f5;
+    --muted: #a8a8a8;
+    --line: #262626;
+    --accent: #0095f6;
+    --danger: #ed4956;
+    --ok: #5fd068;
+    --bar: rgba(0, 0, 0, 0.9);
   }
 }
 
 @theme inline {
   --color-bg: var(--bg);
   --color-card: var(--card);
+  --color-card-border: var(--card-border);
+  --color-fill: var(--fill);
   --color-text: var(--text);
   --color-muted: var(--muted);
   --color-line: var(--line);
@@ -36,7 +43,7 @@
   --color-danger: var(--danger);
   --color-ok: var(--ok);
   --color-bar: var(--bar);
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 html,
@@ -70,6 +77,27 @@ select {
   opacity: 0.7;
 }
 
+/* Instagram brand gradient */
+.ig-gradient {
+  background-image: var(--ig-gradient);
+}
+.ig-gradient-text {
+  background-image: var(--ig-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* Story-style ring around an avatar */
+.ig-ring {
+  padding: 2px;
+  border-radius: 9999px;
+  background-image: var(--ig-gradient);
+}
+.ig-ring > * {
+  border: 2px solid var(--card);
+  border-radius: 9999px;
+}
+
 @keyframes sheet-up {
   from {
     transform: translateY(100%);
@@ -80,4 +108,12 @@ select {
 }
 .sheet {
   animation: sheet-up 260ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media print {
+  html,
+  body {
+    background: #fff;
+    color: #000;
+  }
 }

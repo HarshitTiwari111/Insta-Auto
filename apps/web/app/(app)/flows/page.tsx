@@ -153,7 +153,7 @@ function FlowEditor({ accountId, id, initial, onClose }: { accountId: string; id
           {s.buttons.map((b, bi) => (
             <div key={bi} className="flex items-center gap-2 px-4 py-2">
               <input
-                className="min-w-0 flex-1 rounded-lg bg-line px-3 py-2 text-[15px] outline-none"
+                className="min-w-0 flex-1 rounded-lg bg-fill px-3 py-2 text-[15px] outline-none"
                 maxLength={20}
                 placeholder="Button text"
                 value={b.title}
@@ -161,7 +161,7 @@ function FlowEditor({ accountId, id, initial, onClose }: { accountId: string; id
               />
               <span className="text-[13px] text-muted">→</span>
               <select
-                className="rounded-lg bg-line px-2 py-2 text-[15px] outline-none"
+                className="rounded-lg bg-fill px-2 py-2 text-[15px] outline-none"
                 value={b.next ?? ""}
                 onChange={(e) => setStep(i, { ...s, buttons: s.buttons.map((x, k) => (k === bi ? { ...x, next: e.target.value || null } : x)) })}
               >

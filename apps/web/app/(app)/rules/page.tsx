@@ -79,7 +79,7 @@ export default function RulesPage() {
       <ErrorNote error={rules.error} />
       {tab === "DM" && (
         <div className="mx-4 mb-4">
-          <Link href="/flows" className="press flex items-center justify-between rounded-xl bg-card px-4 py-3.5 text-[17px]">
+          <Link href="/flows" className="press flex items-center justify-between rounded-xl border border-card-border bg-card px-4 py-3.5 text-[17px]">
             <span>🤖 Chatbot flows</span>
             <span className="text-muted">Step-by-step DM menus ›</span>
           </Link>
@@ -398,7 +398,7 @@ function TemplatePicker({ current, onInsert, forDm }: { current: string; onInser
       <span className="mb-1 block text-[13px] text-muted">{forDm ? "Templates for the DM" : "Templates library"} (tap to add)</span>
       <div className="flex flex-wrap gap-2">
         {list.data?.map((t) => (
-          <span key={t.id} className="flex items-center gap-1 rounded-full bg-line px-3 py-1.5 text-[14px]" title={t.text}>
+          <span key={t.id} className="flex items-center gap-1 rounded-full bg-fill px-3 py-1.5 text-[14px]" title={t.text}>
             <button onClick={() => onInsert(t.text)}>{t.name}</button>
             <button aria-label={`Delete ${t.name}`} className="text-muted" onClick={() => confirm(`Delete template “${t.name}”?`) && drop.mutate(t.id)}>
               ✕

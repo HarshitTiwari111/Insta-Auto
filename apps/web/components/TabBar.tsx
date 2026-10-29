@@ -22,7 +22,7 @@ export function TabBar() {
             <li key={href} className="flex-1">
               <Link
                 href={href}
-                className={`flex flex-col items-center gap-0.5 pb-1 pt-2 text-[10px] font-medium ${active ? "text-accent" : "text-muted"}`}
+                className={`flex flex-col items-center gap-0.5 pb-1 pt-2 text-[10px] font-medium ${active ? "text-text" : "text-muted"}`}
               >
                 <Icon />
                 {label}

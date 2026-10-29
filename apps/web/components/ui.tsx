@@ -2,13 +2,13 @@
 
 import { useEffect } from "react";
 
-/** Large iOS-style title header */
-export function Header({ title, right }: { title: string; right?: React.ReactNode }) {
+/** Instagram-style top bar: page title left, action right, hairline below */
+export function Header({ title, right, brand }: { title: string; right?: React.ReactNode; brand?: boolean }) {
   return (
-    <header className="pt-safe sticky top-0 z-20 bg-bar backdrop-blur-xl">
-      <div className="flex items-end justify-between px-5 pb-2 pt-3">
-        <h1 className="text-[32px] font-bold leading-tight tracking-tight">{title}</h1>
-        <div className="pb-1">{right}</div>
+    <header className="pt-safe sticky top-0 z-20 mb-4 border-b border-line bg-bar backdrop-blur-xl print:static">
+      <div className="flex min-h-[56px] items-center justify-between px-4">
+        <h1 className={`text-[24px] font-bold tracking-tight ${brand ? "ig-gradient-text" : ""}`}>{title}</h1>
+        <div className="text-[16px] font-semibold">{right}</div>
       </div>
     </header>
   );
@@ -18,9 +18,9 @@ export function Header({ title, right }: { title: string; right?: React.ReactNod
 export function Group({ title, footer, children }: { title?: string; footer?: string; children: React.ReactNode }) {
   return (
     <section className="mx-4 mb-6">
-      {title && <h2 className="mb-1.5 px-4 text-[13px] uppercase tracking-wide text-muted">{title}</h2>}
-      <div className="overflow-hidden rounded-xl bg-card [&>*+*]:border-t [&>*+*]:border-line">{children}</div>
-      {footer && <p className="mt-1.5 px-4 text-[13px] text-muted">{footer}</p>}
+      {title && <h2 className="mb-2 px-1 text-[15px] font-semibold">{title}</h2>}
+      <div className="overflow-hidden rounded-xl border border-card-border bg-card [&>*+*]:border-t [&>*+*]:border-line">{children}</div>
+      {footer && <p className="mt-1.5 px-1 text-[13px] leading-snug text-muted">{footer}</p>}
     </section>
   );
 }
@@ -29,9 +29,11 @@ export function Row({
   title,
   subtitle,
   right,
+  left,
   onClick,
   danger,
 }: {
+  left?: React.ReactNode;
   title: React.ReactNode;
   subtitle?: React.ReactNode;
   right?: React.ReactNode;
@@ -55,10 +57,11 @@ export function Row({
             }
           : undefined
       }
-      className={`flex w-full min-h-[48px] items-center gap-3 px-4 py-2.5 text-left ${onClick ? "press cursor-pointer active:bg-line" : ""}`}
+      className={`flex w-full min-h-[48px] items-center gap-3 px-4 py-2.5 text-left ${onClick ? "press cursor-pointer active:bg-fill" : ""}`}
     >
+      {left}
       <div className="min-w-0 flex-1">
-        <div className={`truncate text-[17px] ${danger ? "text-danger" : ""}`}>{title}</div>
+        <div className={`truncate text-[16px] ${danger ? "text-danger" : ""}`}>{title}</div>
         {subtitle && <div className="truncate text-[14px] text-muted">{subtitle}</div>}
       </div>
       {right}
@@ -76,10 +79,10 @@ export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boo
         e.stopPropagation();
         onChange(!on);
       }}
-      className={`relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors ${on ? "bg-ok" : "bg-line"}`}
+      className={`relative h-[28px] w-[46px] shrink-0 rounded-full transition-colors ${on ? "bg-accent" : "bg-fill"}`}
     >
       <span
-        className={`absolute left-0 top-[2px] h-[27px] w-[27px] rounded-full bg-white shadow transition-transform ${on ? "translate-x-[22px]" : "translate-x-[2px]"}`}
+        className={`absolute left-0 top-[2px] h-[24px] w-[24px] rounded-full bg-white shadow transition-transform ${on ? "translate-x-[20px]" : "translate-x-[2px]"}`}
       />
     </button>
   );
@@ -101,14 +104,14 @@ export function Button({
   const styles = {
     primary: "bg-accent text-white",
     danger: "bg-danger text-white",
-    plain: "bg-card text-accent",
+    plain: "border border-card-border bg-card text-text",
   }[variant];
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`press w-full rounded-xl px-4 py-3.5 text-[17px] font-semibold disabled:opacity-40 ${styles}`}
+      className={`press w-full rounded-lg px-4 py-3 text-[15px] font-semibold disabled:opacity-40 ${styles}`}
     >
       {children}
     </button>
@@ -180,12 +183,14 @@ export function Field({
 
 export function Segmented<T extends string>({ value, options, onChange }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
   return (
-    <div className="mx-4 mb-4 flex rounded-lg bg-line p-0.5">
+    <div className="mx-4 mb-4 flex border-b border-line">
       {options.map((o) => (
         <button
           key={o.value}
           onClick={() => onChange(o.value)}
-          className={`flex-1 rounded-md py-1.5 text-[13px] font-medium transition ${value === o.value ? "bg-card shadow" : "text-muted"}`}
+          className={`-mb-px min-w-0 flex-1 truncate border-b-2 px-1 py-2.5 text-[14px] font-semibold transition ${
+            value === o.value ? "border-text text-text" : "border-transparent text-muted"
+          }`}
         >
           {o.label}
         </button>

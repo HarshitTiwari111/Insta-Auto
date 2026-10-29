@@ -58,7 +58,7 @@ export default function PostsPage() {
       />
       <AccountSwitcher accounts={accounts} selected={selected} onSelect={select} />
       <div className="mx-4 mb-3">
-        <button className="press w-full rounded-xl bg-card px-4 py-3 text-left text-[17px] text-accent" onClick={() => setShowIdeas(true)}>
+        <button className="press w-full rounded-xl border border-card-border bg-card px-4 py-3 text-left text-[17px] text-accent" onClick={() => setShowIdeas(true)}>
           💡 Content ideas with AI
         </button>
       </div>
@@ -69,7 +69,7 @@ export default function PostsPage() {
           { value: "scheduled", label: "Scheduled" },
           { value: "calendar", label: "Calendar" },
           { value: "drafts", label: "Drafts" },
-          { value: "live", label: "On Instagram" },
+          { value: "live", label: "Instagram" },
         ]}
       />
       <ErrorNote error={posts.error ?? act.error ?? (view === "live" ? media.error : null)} />
@@ -171,7 +171,7 @@ function PostRow({
   const editable = p.status === "DRAFT" || p.status === "PENDING";
   return (
     <Row
-      title={`${typeLabel(p.type)} · ${new Date(p.scheduledAt).toLocaleString()}`}
+      title={`${typeLabel(p.type)} · ${new Date(p.scheduledAt).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}`}
       subtitle={p.error ?? p.caption ?? p.mediaUrls[0] ?? "No media yet"}
       right={
         <div className="flex flex-col items-end gap-1">
@@ -206,7 +206,7 @@ const DOT = {
   PUBLISHING: "bg-accent",
   PUBLISHED: "bg-ok",
   FAILED: "bg-danger",
-  CANCELLED: "bg-line",
+  CANCELLED: "bg-fill",
 } as const;
 const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 
@@ -252,7 +252,7 @@ function Calendar({ accountId, onEdit }: { accountId: string; onEdit: (p: Post) 
   return (
     <>
       <ErrorNote error={posts.error ?? act.error} />
-      <section className="mx-4 mb-4 rounded-xl bg-card p-3">
+      <section className="mx-4 mb-4 rounded-xl border border-card-border bg-card p-3">
         <div className="mb-2 flex items-center justify-between">
           <button className="press px-3 text-[22px] text-accent" aria-label="Previous month" onClick={() => shift(-1)}>
             ‹
@@ -473,7 +473,7 @@ function PostEditor({
         {urlList.length > 0 && (
           <div className="flex gap-2 overflow-x-auto px-4 py-2">
             {urlList.map((u) => (
-              <div key={u} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-line">
+              <div key={u} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-fill">
                 {/\.(mp4|mov)(\?|$)/i.test(u) ? (
                   <video src={u} className="h-full w-full object-cover" muted preload="metadata" />
                 ) : (
@@ -508,7 +508,7 @@ function PostEditor({
           >
             <div className="flex flex-wrap gap-2 px-4 py-3">
               {sets.data?.map((s) => (
-                <span key={s.id} className="flex items-center gap-1 rounded-full bg-line px-3 py-1.5 text-[14px]">
+                <span key={s.id} className="flex items-center gap-1 rounded-full bg-fill px-3 py-1.5 text-[14px]">
                   <button onClick={() => addTags(s.tags)}>#{s.name}</button>
                   <button aria-label={`Delete ${s.name}`} className="text-muted" onClick={() => confirm(`Delete set “${s.name}”?`) && dropSet.mutate(s.id)}>
                     ✕

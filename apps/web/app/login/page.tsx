@@ -30,9 +30,11 @@ export default function LoginPage() {
   return (
     <main className="pt-safe mx-auto flex min-h-dvh max-w-md flex-col justify-center pb-10">
       <div className="mb-8 text-center">
-        <img src="/icons/icon-192.png" alt="" className="mx-auto mb-3 h-20 w-20 rounded-[22px]" />
-        <h1 className="text-[28px] font-bold">Instaauto</h1>
-        <p className="text-muted">Team sign in</p>
+        <span className="ig-gradient mx-auto mb-4 block w-fit rounded-[26px] p-[3px]">
+          <img src="/icons/icon-192.png" alt="" className="block h-20 w-20 rounded-[23px]" />
+        </span>
+        <h1 className="ig-gradient-text text-[34px] font-bold tracking-tight">Instaauto</h1>
+        <p className="mt-1 text-muted">Sign in to your team account</p>
       </div>
       <InstallHint />
       <form onSubmit={submit}>

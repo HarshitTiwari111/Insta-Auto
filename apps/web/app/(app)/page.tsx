@@ -5,10 +5,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, timeAgo, type Activity } from "@/lib/api";
 import { Badge, Button, Empty, ErrorNote, Group, Header, Row } from "@/components/ui";
 import { InstallHint } from "@/components/InstallHint";
+import { Avatar } from "@/components/Avatar";
 import { activityLabel } from "@/lib/labels";
 
 interface Dashboard {
-  accounts: { id: string; username: string; paused: boolean; dailyActionLimit: number; actionsToday: number }[];
+  accounts: { id: string; username: string; profilePictureUrl: string | null; paused: boolean; dailyActionLimit: number; actionsToday: number }[];
   activeRules: number;
   pendingPosts: number;
   failedPosts: number;
@@ -27,7 +28,7 @@ export default function Home() {
 
   return (
     <>
-      <Header title="Home" />
+      <Header title="Instaauto" brand />
       <InstallHint />
       <ErrorNote error={dash.error} />
 
@@ -37,17 +38,9 @@ export default function Home() {
         <Stat label="Failed posts" value={d?.failedPosts} href="/posts" tone={d?.failedPosts ? "danger" : undefined} />
       </div>
 
-      <div className="mx-4 mb-3">
-        <Link href="/comments" className="press flex items-center justify-between rounded-xl bg-card px-4 py-3.5 text-[17px]">
-          <span>💬 Comments</span>
-          <span className="text-muted">Moderate, reply, sentiment ›</span>
-        </Link>
-      </div>
-      <div className="mx-4 mb-6">
-        <Link href="/analytics" className="press flex items-center justify-between rounded-xl bg-card px-4 py-3.5 text-[17px]">
-          <span>📊 Analytics</span>
-          <span className="text-muted">Followers, engagement, best posts ›</span>
-        </Link>
+      <div className="mx-4 mb-6 grid grid-cols-2 gap-3">
+        <Shortcut href="/comments" icon="💬" title="Comments" subtitle="Reply & hide" />
+        <Shortcut href="/analytics" icon="📊" title="Analytics" subtitle="Growth & posts" />
       </div>
 
       <Group title="Accounts">
@@ -55,6 +48,7 @@ export default function Home() {
         {d?.accounts.map((a) => (
           <Row
             key={a.id}
+            left={<Avatar src={a.profilePictureUrl} name={a.username} size={36} />}
             title={`@${a.username}`}
             subtitle={`${a.actionsToday} / ${a.dailyActionLimit} actions today`}
             right={<Badge tone={a.paused ? "danger" : "ok"}>{a.paused ? "Paused" : "Running"}</Badge>}
@@ -101,9 +95,21 @@ function summary(a: Activity): string {
   return String(d.reply ?? d.dm ?? d.text ?? d.message ?? d.error ?? "");
 }
 
+function Shortcut({ href, icon, title, subtitle }: { href: string; icon: string; title: string; subtitle: string }) {
+  return (
+    <Link href={href} className="press flex items-center gap-3 rounded-xl border border-card-border bg-card p-3">
+      <span className="ig-gradient flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[20px]">{icon}</span>
+      <span className="min-w-0">
+        <span className="block truncate text-[15px] font-semibold">{title}</span>
+        <span className="block truncate text-[12px] text-muted">{subtitle}</span>
+      </span>
+    </Link>
+  );
+}
+
 function Stat({ label, value, href, tone }: { label: string; value?: number; href: string; tone?: "danger" }) {
   return (
-    <Link href={href} className="press rounded-xl bg-card p-3">
+    <Link href={href} className="press rounded-xl border border-card-border bg-card p-3">
       <div className={`text-[26px] font-bold ${tone === "danger" ? "text-danger" : ""}`}>{value ?? "–"}</div>
       <div className="text-[12px] text-muted">{label}</div>
     </Link>

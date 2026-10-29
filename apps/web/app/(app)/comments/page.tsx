@@ -23,7 +23,7 @@ interface ModComment {
 type Sentiment = "positive" | "neutral" | "negative" | "spam";
 const TONE: Record<Sentiment, string> = {
   positive: "bg-ok/15 text-ok",
-  neutral: "bg-line text-muted",
+  neutral: "bg-fill text-muted",
   negative: "bg-danger/15 text-danger",
   spam: "bg-[#ff9f0a]/15 text-[#ff9f0a]",
 };
@@ -128,7 +128,7 @@ export default function CommentsPage() {
           {list.map((c) => (
             <div key={c.id} className={`px-4 py-3 ${c.hidden ? "opacity-60" : ""}`}>
               <div className="flex gap-3">
-                <a href={c.permalink ?? undefined} target="_blank" rel="noreferrer" className="h-10 w-10 shrink-0 overflow-hidden rounded-md bg-line">
+                <a href={c.permalink ?? undefined} target="_blank" rel="noreferrer" className="h-10 w-10 shrink-0 overflow-hidden rounded-md bg-fill">
                   {c.mediaThumb && <img src={c.mediaThumb} alt="" className="h-full w-full object-cover" loading="lazy" />}
                 </a>
                 <div className="min-w-0 flex-1">
@@ -173,7 +173,7 @@ export default function CommentsPage() {
                     >
                       <input
                         autoFocus
-                        className="min-w-0 flex-1 rounded-lg bg-line px-3 py-2 text-[15px] outline-none"
+                        className="min-w-0 flex-1 rounded-lg bg-fill px-3 py-2 text-[15px] outline-none"
                         placeholder={`Reply to @${c.username ?? ""}`}
                         value={replyText}
                         onChange={(e) => setReplyText(e.target.value)}

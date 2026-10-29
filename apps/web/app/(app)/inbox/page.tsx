@@ -105,7 +105,7 @@ export default function InboxPage() {
           <ErrorNote error={send.error} />
           {windowLeft > 0 ? (
             <form
-              className="flex items-end gap-2 rounded-2xl bg-card p-2"
+              className="flex items-end gap-2 rounded-2xl border border-card-border bg-card p-2"
               onSubmit={(e) => {
                 e.preventDefault();
                 if (draft.trim() && !send.isPending) send.mutate();

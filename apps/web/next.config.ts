@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const API_URL = process.env.API_URL ?? "http://localhost:4000";
 
 const config: NextConfig = {
+  devIndicators: false,
   // Video uploads go through the /api proxy below; Next cuts proxied bodies at 10 MB by default.
   // Matches the API's own 300 MB upload limit.
   experimental: { proxyClientMaxBodySize: "300mb" },

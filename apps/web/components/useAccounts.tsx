@@ -39,7 +39,7 @@ export function AccountSwitcher({ accounts, selected, onSelect }: { accounts: Ac
   return (
     <div className="mx-4 mb-4">
       <select
-        className="w-full rounded-xl bg-card px-4 py-3 text-[17px] outline-none"
+        className="w-full rounded-xl border border-card-border bg-card px-4 py-3 text-[17px] outline-none"
         value={selected.id}
         onChange={(e) => onSelect(e.target.value)}
       >

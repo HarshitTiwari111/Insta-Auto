@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Account } from "@/lib/api";
 import { disablePush, enablePush, pushEnabled } from "@/lib/push";
 import { useAccounts } from "@/components/useAccounts";
+import { Avatar } from "@/components/Avatar";
 import { Badge, Button, ErrorNote, Field, Group, Header, Row, Segmented, Sheet, Toggle } from "@/components/ui";
 
 export default function SettingsPage() {
@@ -69,6 +70,7 @@ export default function SettingsPage() {
           <Row
             key={a.id}
             onClick={() => setEditing(a)}
+            left={<Avatar src={a.profilePictureUrl} name={a.username} size={36} />}
             title={`@${a.username}`}
             subtitle={`${a.paused ? "Paused" : "Running"} · ${
               a.authType === "FACEBOOK" ? "via Facebook Page" : `token expires ${new Date(a.tokenExpiresAt).toLocaleDateString()}`

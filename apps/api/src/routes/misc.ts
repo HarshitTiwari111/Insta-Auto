@@ -24,7 +24,7 @@ export default async function miscRoutes(app: FastifyInstance) {
   app.get("/dashboard", async () => {
     const day = utcDay();
     const [accounts, activeRules, pendingPosts, failedPosts, recent] = await Promise.all([
-      prisma.igAccount.findMany({ select: { id: true, username: true, paused: true, dailyActionLimit: true } }),
+      prisma.igAccount.findMany({ select: { id: true, username: true, profilePictureUrl: true, paused: true, dailyActionLimit: true } }),
       prisma.automationRule.count({ where: { enabled: true } }),
       prisma.scheduledPost.count({ where: { status: "PENDING" } }),
       prisma.scheduledPost.count({ where: { status: "FAILED" } }),
