@@ -61,14 +61,13 @@ export default function RulesPage() {
   return (
     <>
       <Header
-        title="Rules"
+        title={<AccountSwitcher accounts={accounts} selected={selected} onSelect={select} inHeader />}
         right={
           <button className="text-[16px] font-semibold text-accent" onClick={() => setEditing({ draft: blank(tab) })}>
             ＋ New rule
           </button>
         }
       />
-      <AccountSwitcher accounts={accounts} selected={selected} onSelect={select} />
       <Segmented
         value={tab}
         onChange={setTab}

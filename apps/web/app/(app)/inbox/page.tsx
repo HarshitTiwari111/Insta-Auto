@@ -63,8 +63,7 @@ export default function InboxPage() {
 
   return (
     <>
-      <Header title="Inbox" />
-      <AccountSwitcher accounts={accounts} selected={selected} onSelect={select} />
+      <Header title={<AccountSwitcher accounts={accounts} selected={selected} onSelect={select} inHeader />} />
       <ErrorNote error={msgs.error} />
       {msgs.data?.length === 0 && (
         <Empty icon="📭" text="No DMs yet. Private DMs sent to commenters by your rules, and messages that reach the app, show up here." />
