@@ -98,6 +98,15 @@ select {
   border-radius: 9999px;
 }
 
+/* Scrolls normally, but without a visible scrollbar (popups, like Instagram's) */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @keyframes sheet-up {
   from {
     transform: translateY(100%);

@@ -138,7 +138,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
         // Same width as the app column (max-w-xl), so on a computer it doesn't stretch across the screen
-        className="sheet pb-safe max-h-[92dvh] w-full max-w-xl overflow-y-auto rounded-t-2xl bg-bg"
+        className="sheet no-scrollbar pb-safe max-h-[92dvh] w-full max-w-xl overflow-y-auto rounded-t-2xl bg-bg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-center justify-between bg-bg/90 px-4 py-3 backdrop-blur">
