@@ -37,10 +37,14 @@ export class IgApiError extends Error {
 
 type Params = Record<string, string | number | boolean | undefined>;
 
+const MEDIA_FIELDS = "id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count";
+
 export interface IgMedia {
   id: string;
   caption?: string;
   media_type?: string;
+  /** FEED, REELS or STORY */
+  media_product_type?: string;
   media_url?: string;
   thumbnail_url?: string;
   permalink?: string;
@@ -163,8 +167,32 @@ export class IgClient {
 
   listMedia(limit = 25) {
     return this.request<{ data: IgMedia[] }>("GET", `${this.igUserId}/media`, {
-      fields: "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count",
+      fields: MEDIA_FIELDS,
       limit,
+    });
+  }
+
+  /** Every post/reel on the account (follows cursor paging; capped so a huge account can't run forever). */
+  async listAllMedia(max = 1000): Promise<IgMedia[]> {
+    const out: IgMedia[] = [];
+    let after: string | undefined;
+    do {
+      const page = await this.request<{ data: IgMedia[]; paging?: { cursors?: { after?: string }; next?: string } }>(
+        "GET",
+        `${this.igUserId}/media`,
+        { fields: MEDIA_FIELDS, limit: 100, after },
+      );
+      out.push(...page.data);
+      after = page.paging?.next ? page.paging.cursors?.after : undefined;
+    } while (after && out.length < max);
+    return out.slice(0, max);
+  }
+
+  /** Comment counts for specific posts in one request (`?ids=`). */
+  commentCounts(mediaIds: string[]) {
+    return this.request<Record<string, { id: string; comments_count?: number }>>("GET", "", {
+      ids: mediaIds.join(","),
+      fields: "id,comments_count",
     });
   }
 

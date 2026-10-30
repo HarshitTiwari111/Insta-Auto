@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { uploadMedia } from "@/lib/upload";
-import { api, type Media, type Rule } from "@/lib/api";
+import { api, type Rule } from "@/lib/api";
 import { AccountSwitcher, useAccounts } from "@/components/useAccounts";
 import { Button, Empty, ErrorNote, Field, Group, Header, Row, Segmented, Sheet, Toggle } from "@/components/ui";
+import { MediaPicker, useAllMedia } from "@/components/MediaPicker";
 
 type Draft = Omit<Rule, "id" | "accountId">;
 
@@ -16,7 +17,7 @@ const blank = (trigger: Rule["trigger"]): Draft => ({
   trigger,
   matchType: "KEYWORD",
   keywords: [],
-  mediaId: null,
+  mediaIds: [],
   replyTemplates: [],
   privateReplyTemplates: [],
   hideComment: false,
@@ -127,7 +128,8 @@ export default function RulesPage() {
 }
 
 function describe(r: Rule): string {
-  const when = r.matchType === "ANY" ? "Any message" : `Contains: ${r.keywords.join(", ")}`;
+  const on = r.trigger === "COMMENT" && r.mediaIds?.length ? ` on ${r.mediaIds.length} post${r.mediaIds.length === 1 ? "" : "s"}` : "";
+  const when = (r.matchType === "ANY" ? "Any message" : `Contains: ${r.keywords.join(", ")}`) + on;
   const acts = [
     r.deleteComment && "delete",
     r.hideComment && "hide",
@@ -148,12 +150,9 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
   const [buttons, setButtons] = useState((initial.quickReplies ?? []).join(", "));
   const isComment = d.trigger === "COMMENT";
 
-  const media = useQuery({
-    queryKey: ["media", accountId],
-    queryFn: () => api<Media[]>(`/accounts/${accountId}/media`),
-    enabled: isComment,
-    staleTime: 300_000,
-  });
+  const media = useAllMedia(accountId, isComment);
+  const [picking, setPicking] = useState(false);
+  const chosen = (media.data ?? []).filter((m) => d.mediaIds.includes(m.id));
 
   const save = useMutation({
     mutationFn: () => {
@@ -167,7 +166,7 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
         deleteComment: isComment ? d.deleteComment : false,
         quickReplies: isComment ? [] : buttons.split(",").map((b) => b.trim()).filter(Boolean),
         replyMediaUrl: isComment ? null : d.replyMediaUrl?.trim() || null,
-        mediaId: isComment ? d.mediaId : null,
+        mediaIds: isComment ? d.mediaIds : [],
       };
       return id
         ? api(`/rules/${id}`, { method: "PUT", json: body })
@@ -209,21 +208,37 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
           <Field label="Keywords (comma separated, any one matches)" value={keywords} onChange={setKeywords} placeholder="price, kitna, cost" />
         )}
         {isComment && (
-          <label className="block px-4 py-2.5">
-            <span className="mb-0.5 block text-[13px] text-muted">Only on this post</span>
-            <select
-              className="w-full bg-transparent py-1 outline-none"
-              value={d.mediaId ?? ""}
-              onChange={(e) => setD({ ...d, mediaId: e.target.value || null })}
-            >
-              <option value="">All posts</option>
-              {media.data?.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {(m.caption ?? m.media_type ?? m.id).slice(0, 50)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <button className="press block w-full px-4 py-2.5 text-left" onClick={() => setPicking(true)}>
+            <span className="mb-1 block text-[13px] text-muted">Runs on</span>
+            <span className="flex items-center gap-2">
+              {d.mediaIds.length === 0 ? (
+                <span className="text-[16px]">All posts &amp; reels</span>
+              ) : (
+                <>
+                  <span className="flex -space-x-2">
+                    {chosen.slice(0, 4).map((m) => (
+                      <img key={m.id} src={m.thumbnail_url ?? m.media_url} alt="" className="h-9 w-9 rounded-md border-2 border-card object-cover" />
+                    ))}
+                  </span>
+                  <span className="text-[16px]">
+                    {d.mediaIds.length} selected post{d.mediaIds.length === 1 ? "" : "s"}
+                  </span>
+                </>
+              )}
+              <span className="ml-auto text-[15px] font-semibold text-accent">Choose ›</span>
+            </span>
+          </button>
+        )}
+        {picking && (
+          <MediaPicker
+            accountId={accountId}
+            selected={d.mediaIds}
+            onClose={() => setPicking(false)}
+            onDone={(mediaIds) => {
+              setD({ ...d, mediaIds });
+              setPicking(false);
+            }}
+          />
         )}
       </Group>
 

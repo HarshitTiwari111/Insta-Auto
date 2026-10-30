@@ -6,7 +6,8 @@ export interface RuleLike {
   trigger: "COMMENT" | "DM";
   matchType: "ANY" | "KEYWORD";
   keywords: string[];
-  mediaId: string | null;
+  /** COMMENT only: empty = every post */
+  mediaIds: string[];
   priority: number;
 }
 
@@ -20,7 +21,7 @@ export function matchRule<R extends RuleLike>(
   const sorted = [...rules].sort((a, b) => a.priority - b.priority);
   for (const r of sorted) {
     if (!r.enabled || r.trigger !== input.trigger) continue;
-    if (r.trigger === "COMMENT" && r.mediaId && r.mediaId !== input.mediaId) continue;
+    if (r.trigger === "COMMENT" && r.mediaIds.length && !(input.mediaId && r.mediaIds.includes(input.mediaId))) continue;
     if (r.matchType === "ANY") return r;
     if (r.keywords.some((k) => norm(k) && text.includes(norm(k)))) return r;
   }

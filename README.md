@@ -3,7 +3,7 @@
 Instagram automation PWA for the team: comment auto-replies, spam hiding, private DMs to commenters, DM auto-replies, post / reel / story / carousel scheduling, push alerts.
 Uses only the official Instagram API. Works on iPhone and Android as a Home Screen app, no App Store.
 
-Architecture, Redis/caching design and the verified Meta limits: see [ARCHITECTURE.md](ARCHITECTURE.md). Going live 24x7: [FREE_DEPLOY.md](FREE_DEPLOY.md) (free plans) or [DEPLOY.md](DEPLOY.md) (paid Render).
+Architecture, Redis/caching design and the verified Meta limits: see [ARCHITECTURE.md](ARCHITECTURE.md). Going live 24x7: [FREE_DEPLOY.md](FREE_DEPLOY.md) (free plans) or [DEPLOY.md](DEPLOY.md) (paid Render). Letting other people connect their Instagram without App Review: [TESTERS.md](TESTERS.md).
 
 ```
 apps/web      Next.js PWA (UI)

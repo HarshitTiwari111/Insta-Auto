@@ -152,8 +152,8 @@ model AutomationRule {
   matchType             MatchType   @default(KEYWORD)
   /// Case-insensitive "contains" match. Used when matchType = KEYWORD
   keywords              String[]
-  /// COMMENT rules only: restrict to one post (null = all posts)
-  mediaId               String?
+  /// COMMENT only: run only on these posts/reels (empty = all posts)
+  mediaIds              String[]    @default([])
   /// COMMENT: public reply under the comment. DM: reply message. One is picked at random (rotation).
   replyTemplates        String[]
   /// COMMENT only: one private DM to the commenter (Meta allows 1 per comment, within 7 days)

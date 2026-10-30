@@ -19,6 +19,10 @@ export const keys = {
   /** Where a person is in a DM flow (24h, like Meta's messaging window) */
   flowState: (accountId: string, igsid: string) => `${P}:flow:${accountId}:${igsid}`,
   media: (accountId: string) => `${P}:cache:media:${accountId}`,
+  /** Every post/reel (picker + Instagram grid) */
+  mediaAll: (accountId: string) => `${P}:cache:media-all:${accountId}`,
+  /** Last seen comment count of a post the poller watches because a rule targets it */
+  commentCount: (accountId: string, mediaId: string) => `${P}:poll:count:${accountId}:${mediaId}`,
   profile: (accountId: string) => `${P}:cache:profile:${accountId}`,
 
   /** Counters / limits */

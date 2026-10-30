@@ -150,11 +150,15 @@ export default async function accountRoutes(app: FastifyInstance) {
   });
 
   /** Recent posts. Cached 5 min in Redis so opening the app doesn't burn API quota. */
-  app.get<{ Params: { id: string }; Querystring: { fresh?: string } }>("/accounts/:id/media", async (req, reply) => {
+  app.get<{ Params: { id: string }; Querystring: { fresh?: string; all?: string } }>("/accounts/:id/media", async (req, reply) => {
     const ig = await igClientFor(req.params.id);
     if (!ig) return reply.code(404).send({ error: "not_found" });
-    const key = keys.media(req.params.id);
+    // all=1: every post/reel on the account (rule picker, Instagram grid); otherwise the latest 25
+    const all = req.query.all === "1";
+    const key = all ? keys.mediaAll(req.params.id) : keys.media(req.params.id);
     if (req.query.fresh === "1") await invalidate(redis(), key);
-    return cached<IgMedia[]>(redis(), key, 300, async () => (await ig.listMedia(25)).data);
+    return all
+      ? cached<IgMedia[]>(redis(), key, 600, () => ig.listAllMedia())
+      : cached<IgMedia[]>(redis(), key, 300, async () => (await ig.listMedia(25)).data);
   });
 }

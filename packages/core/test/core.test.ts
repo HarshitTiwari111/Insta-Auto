@@ -79,7 +79,7 @@ const rule = (o: Partial<RuleLike>): RuleLike => ({
   trigger: "COMMENT",
   matchType: "KEYWORD",
   keywords: [],
-  mediaId: null,
+  mediaIds: [],
   priority: 100,
   ...o,
 });
@@ -88,12 +88,14 @@ test("rules: priority, keyword, media filter, disabled", () => {
   const rules = [
     rule({ id: "any", matchType: "ANY", priority: 200 }),
     rule({ id: "price", keywords: ["PRICE", "kitna"], priority: 10 }),
-    rule({ id: "media", keywords: ["link"], mediaId: "M9", priority: 5 }),
+    rule({ id: "media", keywords: ["link"], mediaIds: ["M9", "M7"], priority: 5 }),
     rule({ id: "off", keywords: ["price"], enabled: false, priority: 1 }),
   ];
   assert.equal(matchRule(rules, { trigger: "COMMENT", text: "what is the Price?" })?.id, "price");
   assert.equal(matchRule(rules, { trigger: "COMMENT", text: "link pls", mediaId: "M1" })?.id, "any");
   assert.equal(matchRule(rules, { trigger: "COMMENT", text: "link pls", mediaId: "M9" })?.id, "media");
+  assert.equal(matchRule(rules, { trigger: "COMMENT", text: "link pls", mediaId: "M7" })?.id, "media");
+  assert.equal(matchRule(rules, { trigger: "COMMENT", text: "link pls" })?.id, "any"); // unknown post: targeted rule skipped
   assert.equal(matchRule(rules, { trigger: "DM", text: "price" }), null);
 });
 

@@ -55,6 +55,7 @@ const RuleExport = z.object({
   aiInstructions: z.string().nullable().default(null),
   quickReplies: z.array(z.string()).max(13).default([]),
   replyMediaUrl: z.string().nullable().default(null),
+  mediaIds: z.array(z.string()).max(200).default([]),
   priority: z.number().int(),
 });
 

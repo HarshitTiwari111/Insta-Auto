@@ -56,7 +56,7 @@ export interface Rule {
   trigger: "COMMENT" | "DM";
   matchType: "ANY" | "KEYWORD";
   keywords: string[];
-  mediaId: string | null;
+  mediaIds: string[];
   replyTemplates: string[];
   privateReplyTemplates: string[];
   hideComment: boolean;
@@ -102,6 +102,8 @@ export interface Media {
   id: string;
   caption?: string;
   media_type?: string;
+  /** FEED, REELS or STORY */
+  media_product_type?: string;
   media_url?: string;
   thumbnail_url?: string;
   permalink?: string;

@@ -150,8 +150,8 @@ async function pollComments() {
       let newest = since;
       // 2 min overlap so comments landing in the same second aren't missed; dedupe drops repeats
       const floor = new Date(since.getTime() - 120_000);
-      for (const m of media.slice(0, 10)) {
-        if (!m.comments_count) continue;
+      const watch = [...media.slice(0, 10).filter((m) => m.comments_count), ...(await targetedOlderPosts(acc.id, ig, media.slice(0, 10)))];
+      for (const m of watch) {
         const { data } = await ig.listComments(m.id, 50);
         for (const c of data) {
           const ts = c.timestamp ? new Date(c.timestamp) : null;
@@ -184,6 +184,28 @@ async function pollComments() {
       logger.warn({ err: (err as Error).message, accountId: acc.id }, "comment poll failed");
     }
   }
+}
+
+/**
+ * Older posts/reels that an enabled comment rule targets: polled too, but only when their comment
+ * count went up since the last poll (one `?ids=` request for all of them keeps API calls low).
+ */
+async function targetedOlderPosts(accountId: string, ig: ReturnType<typeof igFor>, latest: IgMedia[]): Promise<{ id: string }[]> {
+  const rules = await prisma.automationRule.findMany({ where: { accountId, enabled: true, trigger: "COMMENT" }, select: { mediaIds: true } });
+  const seen = new Set(latest.map((m) => m.id));
+  const ids = [...new Set(rules.flatMap((r) => r.mediaIds))].filter((id) => !seen.has(id)).slice(0, 50);
+  if (!ids.length) return [];
+  const counts = await ig.commentCounts(ids);
+  const changed: { id: string }[] = [];
+  for (const id of ids) {
+    const now = counts[id]?.comments_count ?? 0;
+    const key = keys.commentCount(accountId, id);
+    const before = await redis().get(key);
+    await redis().set(key, String(now), "EX", 30 * 24 * 3600);
+    // First time we see a post: remember its count, don't reply to old comments
+    if (before !== null && now > Number(before)) changed.push({ id });
+  }
+  return changed;
 }
 
 async function cleanup() {

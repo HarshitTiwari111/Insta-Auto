@@ -13,7 +13,7 @@ const RuleBody = z
     trigger: z.enum(["COMMENT", "DM"]),
     matchType: z.enum(["ANY", "KEYWORD"]).default("KEYWORD"),
     keywords: z.array(z.string().trim().min(1).max(100)).max(50).default([]),
-    mediaId: z.string().trim().min(1).nullable().default(null),
+    mediaIds: z.array(z.string().trim().min(1).max(64)).max(200).default([]),
     replyTemplates: z.array(text).max(20).default([]),
     privateReplyTemplates: z.array(text).max(20).default([]),
     hideComment: z.boolean().default(false),
@@ -30,7 +30,7 @@ const RuleBody = z
     "rule needs at least one action",
   )
   .refine(
-    (r) => r.trigger === "COMMENT" || (r.privateReplyTemplates.length === 0 && !r.hideComment && !r.deleteComment && !r.mediaId),
+    (r) => r.trigger === "COMMENT" || (r.privateReplyTemplates.length === 0 && !r.hideComment && !r.deleteComment && r.mediaIds.length === 0),
     "DM rules only support replyTemplates",
   )
   .refine((r) => r.trigger === "DM" || r.quickReplies.length === 0, "quick reply buttons are for DM rules only")

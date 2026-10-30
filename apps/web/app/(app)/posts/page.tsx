@@ -3,10 +3,11 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { uploadMedia } from "@/lib/upload";
-import { api, type Media, type Post } from "@/lib/api";
+import { api, type Post } from "@/lib/api";
 import { AccountSwitcher, useAccounts } from "@/components/useAccounts";
 import { Badge, Button, Empty, ErrorNote, Field, Group, Header, Row, Segmented, Sheet } from "@/components/ui";
 import { PostViewer, type ViewPost } from "@/components/PostViewer";
+import { isReel, useAllMedia } from "@/components/MediaPicker";
 
 const STATUS_TONE = { DRAFT: "muted", PENDING: "accent", PUBLISHING: "accent", PUBLISHED: "ok", FAILED: "danger", CANCELLED: "muted" } as const;
 
@@ -26,11 +27,9 @@ export default function PostsPage() {
     enabled: Boolean(selected),
     refetchInterval: 30_000,
   });
-  const media = useQuery({
-    queryKey: ["media", selected?.id],
-    queryFn: () => api<Media[]>(`/accounts/${selected!.id}/media`),
-    enabled: Boolean(selected) && view === "live",
-  });
+  // Every post/reel on the account; Reels filter on top like Instagram's profile tabs
+  const media = useAllMedia(selected?.id ?? "", Boolean(selected) && view === "live");
+  const [onlyReels, setOnlyReels] = useState(false);
   const act = useMutation({
     mutationFn: ({ id, action }: { id: string; action: "cancel" | "retry" }) => api(`/posts/${id}/${action}`, { method: "POST" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["posts"] }),
@@ -106,9 +105,22 @@ export default function PostsPage() {
         </>
       )}
 
+      {view === "live" && media.data && (
+        <div className="mx-4 mb-3 flex gap-2">
+          {([false, true] as const).map((r) => (
+            <button
+              key={String(r)}
+              onClick={() => setOnlyReels(r)}
+              className={`rounded-full px-3 py-1.5 text-[14px] font-semibold ${onlyReels === r ? "bg-text text-bg" : "bg-fill text-text"}`}
+            >
+              {r ? `Reels (${media.data.filter(isReel).length})` : `All (${media.data.length})`}
+            </button>
+          ))}
+        </div>
+      )}
       {view === "live" && (
         <div className="mx-4 grid grid-cols-3 gap-1">
-          {media.data?.map((m) => (
+          {media.data?.filter((m) => !onlyReels || isReel(m)).map((m) => (
             <button
               key={m.id}
               onClick={() =>
