@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, timeAgo, type Activity } from "@/lib/api";
-import { Badge, Button, Empty, ErrorNote, Group, Header, Row } from "@/components/ui";
+import { api, type Activity } from "@/lib/api";
+import { Badge, Button, ErrorNote, Group, Header, Row } from "@/components/ui";
 import { InstallHint } from "@/components/InstallHint";
 import { Avatar } from "@/components/Avatar";
-import { activityLabel } from "@/lib/labels";
 
 interface Dashboard {
   accounts: { id: string; username: string; profilePictureUrl: string | null; paused: boolean; dailyActionLimit: number; actionsToday: number }[];
@@ -25,10 +25,31 @@ export default function Home() {
   });
   const d = dash.data;
   const anyRunning = d?.accounts.some((a) => !a.paused);
+  // Red dot on the heart only for activity newer than the last visit to /activity (per device)
+  const [seenAt, setSeenAt] = useState(0);
+  useEffect(() => {
+    try {
+      setSeenAt(Number(localStorage.getItem("ia:activitySeen") ?? 0));
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+  const hasNew = Boolean(d?.recent.some((a) => new Date(a.createdAt).getTime() > seenAt));
 
   return (
     <>
-      <Header title="Instaauto" brand />
+      <Header
+        title="Instaauto"
+        brand
+        right={
+          <Link href="/activity" aria-label="Activity" className="press relative block p-1">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20.5s-7.5-4.6-9.2-9.3C1.7 8 3.6 4.5 7.2 4.5c2 0 3.6 1.1 4.8 2.9 1.2-1.8 2.8-2.9 4.8-2.9 3.6 0 5.5 3.5 4.4 6.7-1.7 4.7-9.2 9.3-9.2 9.3z" />
+            </svg>
+            {hasNew && <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-bg bg-danger" />}
+          </Link>
+        }
+      />
       <InstallHint />
       <ErrorNote error={dash.error} />
 
@@ -69,30 +90,8 @@ export default function Home() {
           </Button>
         </div>
       )}
-
-      <Group title="Recent activity">
-        {d && d.recent.length === 0 && <Empty icon="🕊️" text="Nothing yet. Activity shows here once rules start firing." />}
-        {d?.recent.map((a) => (
-          <Row
-            key={a.id}
-            title={activityLabel(a.kind)}
-            subtitle={[a.account ? `@${a.account.username}` : null, summary(a)].filter(Boolean).join(" · ")}
-            right={<span className="text-[13px] text-muted">{timeAgo(a.createdAt)}</span>}
-          />
-        ))}
-        {d && d.recent.length > 0 && (
-          <Link href="/activity" className="block px-4 py-3 text-[17px] text-accent">
-            See all activity
-          </Link>
-        )}
-      </Group>
     </>
   );
-}
-
-function summary(a: Activity): string {
-  const d = a.detail ?? {};
-  return String(d.reply ?? d.dm ?? d.text ?? d.message ?? d.error ?? "");
 }
 
 function Shortcut({ href, icon, title, subtitle }: { href: string; icon: string; title: string; subtitle: string }) {
