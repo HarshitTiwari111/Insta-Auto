@@ -344,7 +344,7 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
           <div className="mt-2">
             <Box
               single
-              label="Order (lower number is checked first)"
+              label="Order (1 = checked first)"
               value={String(d.priority)}
               onChange={(v) => setD({ ...d, priority: Number(v.replace(/\D/g, "")) || 0 })}
               placeholder="100"
@@ -398,21 +398,24 @@ function Choice({ on, onClick, icon, title, text }: { on: boolean; onClick: () =
   );
 }
 
-/** Labelled text box (multi-line unless `single`) */
+/** Labelled text box: one compact row when `single`, otherwise label above a multi-line box */
 function Box({ label, value, onChange, placeholder, single }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; single?: boolean }) {
+  if (single)
+    return (
+      <label className="flex items-center gap-3 rounded-xl border border-card-border bg-card px-4 py-2.5">
+        <span className="shrink-0 text-[14px] text-muted">{label}</span>
+        <input className="min-w-0 flex-1 bg-transparent text-right text-[15px] outline-none placeholder:text-muted" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+      </label>
+    );
   return (
     <label className="block rounded-xl border border-card-border bg-card px-4 py-2.5">
       <span className="mb-0.5 block text-[13px] text-muted">{label}</span>
-      {single ? (
-        <input className="w-full bg-transparent py-1 outline-none placeholder:text-muted" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
-      ) : (
-        <textarea
-          className="min-h-[72px] w-full resize-y bg-transparent py-1 outline-none placeholder:text-muted"
-          value={value}
-          placeholder={placeholder}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )}
+      <textarea
+        className="min-h-[72px] w-full resize-y bg-transparent py-1 outline-none placeholder:text-muted"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </label>
   );
 }
