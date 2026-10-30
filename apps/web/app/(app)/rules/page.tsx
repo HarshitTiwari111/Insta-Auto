@@ -99,7 +99,7 @@ export default function RulesPage() {
       )}
 
       {list.length > 0 && (
-        <Group footer="Switch off a rule to pause it. If two rules match the same message, the one higher in this list is used.">
+        <Group>
           {list.map((r) => (
             <Row
               key={r.id}
