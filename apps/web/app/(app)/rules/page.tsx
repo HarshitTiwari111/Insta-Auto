@@ -308,7 +308,6 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
           {sendDm && (
             <div className="mt-3">
               <Box label="Private DM" value={privateReplies} onChange={setPrivateReplies} placeholder="Hi! Here are the details you asked for: …" />
-              <p className="mt-1.5 px-1 text-[13px] text-muted">Instagram allows one private DM per comment, within 7 days of the comment.</p>
               <TemplatePicker current={privateReplies} forDm onInsert={(t) => setPrivateReplies(privateReplies.trim() ? `${privateReplies.trim()}\n${t}` : t)} />
             </div>
           )}
@@ -530,28 +529,32 @@ function TemplatePicker({ current, onInsert, forDm }: { current: string; onInser
   });
   const last = current.split("\n").map((l) => l.trim()).filter(Boolean).at(-1);
   return (
-    <div className="px-1 pt-2.5">
-      <span className="mb-1 block text-[13px] text-muted">Saved replies (tap one to use it)</span>
-      <div className="flex flex-wrap gap-2">
-        {list.data?.map((t) => (
-          <span key={t.id} className="flex items-center gap-1 rounded-full bg-fill px-3 py-1.5 text-[14px]" title={t.text}>
-            <button onClick={() => onInsert(t.text)}>{t.name}</button>
-            <button aria-label={`Delete ${t.name}`} className="text-muted" onClick={() => confirm(`Delete template “${t.name}”?`) && drop.mutate(t.id)}>
-              ✕
-            </button>
-          </span>
-        ))}
+    <div className="mt-2 px-1">
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] text-muted">Saved replies{list.data?.length ? "" : ": none yet"}</span>
         <button
-          className="rounded-full border border-line px-3 py-1.5 text-[14px] text-accent"
+          className="text-[13px] font-semibold text-accent"
           onClick={() => {
-            if (!last) return alert("Write a reply in the box below first, then save it as a template.");
-            const name = prompt("Template name:", last.slice(0, 30))?.trim();
+            if (!last) return alert("Write a reply in the box above first, then save it.");
+            const name = prompt("Name for this saved reply:", last.slice(0, 30))?.trim();
             if (name) add.mutate({ name, text: last });
           }}
         >
           ＋ Save this reply
         </button>
       </div>
+      {!!list.data?.length && (
+        <div className="no-scrollbar mt-1.5 flex gap-2 overflow-x-auto">
+          {list.data.map((t) => (
+            <span key={t.id} className="flex shrink-0 items-center gap-1.5 rounded-full border border-card-border bg-card py-1 pl-3 pr-2 text-[13px]" title={t.text}>
+              <button onClick={() => onInsert(t.text)}>{t.name}</button>
+              <button aria-label={`Delete ${t.name}`} className="text-muted" onClick={() => confirm(`Delete saved reply “${t.name}”?`) && drop.mutate(t.id)}>
+                ✕
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
       {(add.error || drop.error) && <p className="mt-1 text-[13px] text-danger">{((add.error ?? drop.error) as Error).message}</p>}
     </div>
   );
