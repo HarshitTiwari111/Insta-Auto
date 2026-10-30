@@ -195,7 +195,7 @@ export default function CommentsPage() {
           ))}
         </Group>
       )}
-      {viewing && <PostViewer accountId={selected.id} ownUsername={selected.username} post={viewing} onClose={() => setViewing(null)} />}
+      {viewing && <PostViewer accountId={selected.id} ownUsername={selected.username} ownPicture={selected.profilePictureUrl} post={viewing} onClose={() => setViewing(null)} />}
     </>
   );
 }

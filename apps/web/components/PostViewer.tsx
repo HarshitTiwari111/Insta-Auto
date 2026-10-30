@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, timeAgo } from "@/lib/api";
 import { ErrorNote, Sheet } from "@/components/ui";
+import { Avatar } from "@/components/Avatar";
 
 export interface ViewPost {
   id: string;
@@ -34,16 +35,20 @@ export function PostViewer({
   post,
   onClose,
   ownUsername,
+  ownPicture,
 }: {
   accountId: string;
   post: ViewPost;
   onClose: () => void;
-  /** Our Instagram username: our replies get a "You" badge */
+  /** Our Instagram username + photo, shown on our own replies */
   ownUsername?: string;
+  ownPicture?: string | null;
 }) {
   const qc = useQueryClient();
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [text, setText] = useState("");
+  /** Comment ids whose replies are expanded ("View N replies") */
+  const [openReplies, setOpenReplies] = useState<string[]>([]);
   const key = ["post-comments", accountId, post.id];
 
   const comments = useQuery({
@@ -68,56 +73,55 @@ export function PostViewer({
     },
   });
 
+  /** Instagram-style comment: avatar, "username text" inline, then grey "time  Reply  Hide  Delete". */
   function renderComment(c: PostComment, isReply: boolean) {
     const mine = Boolean(ownUsername && c.username === ownUsername);
     return (
-      <div key={c.id} className={`${isReply ? "ml-10 mr-4 border-l-2 border-line py-2 pl-3" : "px-4 py-3"} ${c.hidden ? "opacity-60" : ""}`}>
-        <div className="flex items-center gap-2 text-[14px]">
-          <span className="font-semibold">@{c.username ?? "unknown"}</span>
-          {mine && <span className="rounded bg-accent/15 px-1.5 py-0.5 text-[11px] font-semibold text-accent">You</span>}
-          {c.timestamp && <span className="text-muted">{timeAgo(c.timestamp)}</span>}
-          {c.hidden && <span className="text-muted">· hidden</span>}
-        </div>
-        <p className="break-words text-[15px]">{c.text}</p>
-        <div className="mt-1 flex gap-4 text-[14px] font-semibold">
-          {!isReply && (
-            <button className="text-accent" onClick={() => setReplyTo(replyTo === c.id ? null : c.id)}>
-              Reply
+      <div key={c.id} className={`flex gap-3 ${isReply ? "py-2" : "py-3"} ${c.hidden ? "opacity-50" : ""}`}>
+        <Avatar src={mine ? ownPicture : null} name={c.username ?? "?"} size={isReply ? 26 : 32} />
+        <div className="min-w-0 flex-1">
+          <p className="break-words text-[14px] leading-snug">
+            <span className="mr-1.5 font-semibold">{c.username ?? "unknown"}</span>
+            {c.text}
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] font-semibold text-muted">
+            {c.timestamp && <span className="font-normal">{timeAgo(c.timestamp)}</span>}
+            {c.hidden && <span className="font-normal">Hidden</span>}
+            {!isReply && <button onClick={() => setReplyTo(replyTo === c.id ? null : c.id)}>Reply</button>}
+            {!mine && (
+              <button disabled={act.isPending} onClick={() => act.mutate({ id: c.id, action: "hide", hide: !c.hidden })}>
+                {c.hidden ? "Unhide" : "Hide"}
+              </button>
+            )}
+            <button
+              className="text-danger/80"
+              disabled={act.isPending}
+              onClick={() => confirm("Delete this comment from Instagram?") && act.mutate({ id: c.id, action: "delete" })}
+            >
+              Delete
             </button>
+          </div>
+          {replyTo === c.id && (
+            <form
+              className="mt-2 flex items-center gap-2 rounded-full border border-line px-3 py-1"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (text.trim()) reply.mutate(c.id);
+              }}
+            >
+              <input
+                autoFocus
+                className="min-w-0 flex-1 bg-transparent py-1.5 text-[14px] outline-none placeholder:text-muted"
+                placeholder={`Reply to ${c.username ?? ""}…`}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+              />
+              <button type="submit" disabled={reply.isPending || !text.trim()} className="text-[14px] font-semibold text-accent disabled:opacity-40">
+                {reply.isPending ? "…" : "Post"}
+              </button>
+            </form>
           )}
-          {!mine && (
-            <button className="text-muted" disabled={act.isPending} onClick={() => act.mutate({ id: c.id, action: "hide", hide: !c.hidden })}>
-              {c.hidden ? "Unhide" : "Hide"}
-            </button>
-          )}
-          <button
-            className="text-danger"
-            disabled={act.isPending}
-            onClick={() => confirm("Delete this comment from Instagram?") && act.mutate({ id: c.id, action: "delete" })}
-          >
-            Delete
-          </button>
         </div>
-        {replyTo === c.id && (
-          <form
-            className="mt-2 flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (text.trim()) reply.mutate(c.id);
-            }}
-          >
-            <input
-              autoFocus
-              className="min-w-0 flex-1 rounded-lg bg-fill px-3 py-2 text-[15px] outline-none"
-              placeholder={`Reply to @${c.username ?? ""}`}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            />
-            <button type="submit" disabled={reply.isPending || !text.trim()} className="rounded-lg bg-accent px-3 text-[15px] font-semibold text-white disabled:opacity-40">
-              {reply.isPending ? "…" : "Post"}
-            </button>
-          </form>
-        )}
       </div>
     );
   }
@@ -145,18 +149,33 @@ export function PostViewer({
         </div>
       </div>
 
-      <h2 className="mx-5 mb-2 mt-5 text-[15px] font-semibold">Comments</h2>
+      <h2 className="mx-4 mb-1 mt-5 text-[15px] font-semibold">Comments</h2>
       <ErrorNote error={comments.error ?? act.error ?? reply.error} />
       {comments.isLoading && <p className="py-6 text-center text-muted">Loading…</p>}
-      {comments.data?.length === 0 && <p className="px-5 py-4 text-[15px] text-muted">No comments yet.</p>}
+      {comments.data?.length === 0 && <p className="px-4 py-4 text-[14px] text-muted">No comments yet.</p>}
       {!!comments.data?.length && (
-        <div className="mx-4 overflow-hidden rounded-xl border border-card-border bg-card [&>*+*]:border-t [&>*+*]:border-line">
-          {comments.data.map((c) => (
-            <div key={c.id}>
-              {renderComment(c, false)}
-              {!!c.replies?.length && <div className="pb-2">{c.replies.map((r) => renderComment(r, true))}</div>}
-            </div>
-          ))}
+        <div className="px-4">
+          {comments.data.map((c) => {
+            const n = c.replies?.length ?? 0;
+            const shown = openReplies.includes(c.id);
+            return (
+              <div key={c.id}>
+                {renderComment(c, false)}
+                {n > 0 && (
+                  <div className="pl-11">
+                    <button
+                      className="flex items-center gap-3 py-1 text-[12px] font-semibold text-muted"
+                      onClick={() => setOpenReplies((o) => (shown ? o.filter((x) => x !== c.id) : [...o, c.id]))}
+                    >
+                      <span className="h-px w-6 bg-muted" />
+                      {shown ? "Hide replies" : `View ${n} ${n === 1 ? "reply" : "replies"}`}
+                    </button>
+                    {shown && c.replies!.map((r) => renderComment(r, true))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </Sheet>
