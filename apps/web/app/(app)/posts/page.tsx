@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { uploadMedia } from "@/lib/upload";
-import { api, type Post } from "@/lib/api";
+import { api, ApiError, type Post } from "@/lib/api";
 import { bannedHashtags } from "@/lib/bannedHashtags";
 import { AccountSwitcher, useAccounts } from "@/components/useAccounts";
 import { Badge, Button, Empty, ErrorNote, Field, Group, Header, Row, Segmented, Sheet } from "@/components/ui";
@@ -339,6 +339,11 @@ function PostRow({
                 Cancel
               </button>
             )}
+            {p.status === "PUBLISHED" && !p.deleteAt && !p.deletedAt && (
+              <button className="text-[13px] text-accent" onClick={() => onEdit(p)}>
+                Auto-delete
+              </button>
+            )}
             {p.deleteAt && !p.deletedAt && !editable && (
               <button className="text-[13px] text-accent" disabled={keep.isPending} onClick={() => confirm("Keep this post on Instagram (don't auto-delete)?") && keep.mutate()}>
                 Don&apos;t delete
@@ -520,11 +525,14 @@ function PostEditor({
   const [when, setWhen] = useState(localInputValue(post ? new Date(post.scheduledAt) : new Date(Date.now() + 30 * 60_000)));
   // Auto-delete: "never", hours after publishing, or "custom" (own date)
   const [delMode, setDelMode] = useState(post?.deleteAt ? "custom" : "never");
+  // Already on Instagram: only auto-delete can still be changed
+  const [published, setPublished] = useState(post?.status === "PUBLISHED" || post?.status === "PUBLISHING");
   const [delAt, setDelAt] = useState(post?.deleteAt ? localInputValue(new Date(post.deleteAt)) : "");
   const deleteAt = (() => {
     if (delMode === "never") return null;
     if (delMode === "custom") return delAt ? new Date(delAt).toISOString() : null;
-    return new Date(new Date(when).getTime() + Number(delMode) * 3600_000).toISOString();
+    const base = published ? Date.now() : new Date(when).getTime();
+    return new Date(base + Number(delMode) * 3600_000).toISOString();
   })();
   const banned = bannedHashtags(`${caption} ${firstComment}`);
   const done = () => {
@@ -532,9 +540,9 @@ function PostEditor({
     onClose();
   };
 
-  const save = useMutation({
-    mutationFn: (draft: boolean) =>
-      api(post ? `/posts/${post.id}` : "/posts", {
+  const saveDelete = () => api(`/posts/${post!.id}/auto-delete`, { method: "PATCH", json: { deleteAt } });
+  const saveFull = (draft: boolean) =>
+    api(post ? `/posts/${post.id}` : "/posts", {
         method: post ? "PUT" : "POST",
         json: {
           accountId,
@@ -546,7 +554,21 @@ function PostEditor({
           deleteAt,
           draft,
         },
-      }),
+      });
+  const save = useMutation({
+    mutationFn: async (draft: boolean) => {
+      if (published) return saveDelete();
+      try {
+        return await saveFull(draft);
+      } catch (err) {
+        // Published while the editor was open: keep the auto-delete choice instead of failing
+        if (post && err instanceof ApiError && err.status === 409 && /PUBLISH/.test(err.message)) {
+          setPublished(true);
+          return saveDelete();
+        }
+        throw err;
+      }
+    },
     onSuccess: done,
   });
   const remove = useMutation({
@@ -600,6 +622,29 @@ function PostEditor({
   }
 
   return (
+    published ? (
+      <Sheet open onClose={onClose} title="Auto-delete">
+        <Group footer="The post is already on Instagram. Choose when it should be removed.">
+          <label className="flex items-center justify-between gap-3 px-4 py-3">
+            <span className="text-[15px]">Delete automatically</span>
+            <select className="bg-transparent text-right text-[15px] text-accent outline-none" value={delMode} onChange={(e) => setDelMode(e.target.value)}>
+              <option value="never">Never</option>
+              <option value="1">In 1 hour</option>
+              <option value="24">In 1 day</option>
+              <option value="168">In 7 days</option>
+              <option value="custom">On a date…</option>
+            </select>
+          </label>
+          {delMode === "custom" && <Field label="Delete on" type="datetime-local" value={delAt} onChange={setDelAt} />}
+        </Group>
+        <ErrorNote error={save.error} />
+        <div className="mx-4">
+          <Button onClick={() => save.mutate(false)} disabled={save.isPending || (delMode === "custom" && !delAt)}>
+            {save.isPending ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      </Sheet>
+    ) : (
     <Sheet open onClose={onClose} title={post?.status === "DRAFT" ? "Draft" : post ? "Edit post" : "New post"}>
       <Segmented
         value={type}
@@ -734,5 +779,6 @@ function PostEditor({
         )}
       </div>
     </Sheet>
+    )
   );
 }
