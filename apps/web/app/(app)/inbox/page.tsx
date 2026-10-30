@@ -168,7 +168,7 @@ function Chat({
               <path d="M15 18l-6-6 6-6" />
             </svg>
           </button>
-          <a href={profile} target="_blank" rel="noopener noreferrer" className="press flex min-w-0 items-center gap-3">
+          <a href={profile} className="press flex min-w-0 items-center gap-3">
             <Avatar name={username ?? "?"} size={34} />
             <div className="min-w-0">
               <div className="truncate text-[16px] font-semibold">{title}</div>
@@ -180,13 +180,13 @@ function Chat({
         {/* messages */}
         <div className="no-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
           <div className="mb-4 flex flex-col items-center gap-2 pt-4 text-center">
-            <a href={profile} target="_blank" rel="noopener noreferrer" className="press flex flex-col items-center gap-2">
+            <a href={profile} className="press flex flex-col items-center gap-2">
               <Avatar name={username ?? "?"} size={84} />
               <div className="text-[18px] font-semibold">{title}</div>
               <div className="text-[13px] text-muted">Instagram</div>
             </a>
             {profile && (
-              <a href={profile} target="_blank" rel="noopener noreferrer" className="press mt-1 rounded-lg bg-fill px-4 py-1.5 text-[14px] font-semibold">
+              <a href={profile} className="press mt-1 rounded-lg bg-fill px-4 py-1.5 text-[14px] font-semibold">
                 View profile
               </a>
             )}
