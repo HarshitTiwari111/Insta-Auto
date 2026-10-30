@@ -1,5 +1,5 @@
 import { Worker } from "bullmq";
-import { configurePush, createRedis, env, logger, QUEUE } from "@instaauto/core";
+import { configurePush, createRedis, env, keys, logger, QUEUE, redis } from "@instaauto/core";
 import { prisma } from "@instaauto/db";
 import { processEvent } from "./processors/events.js";
 import { processPublish } from "./processors/publish.js";
@@ -46,8 +46,17 @@ if (e.COMMENT_POLL_MINUTES > 0) {
 
 logger.info({ queues: workers.map((w) => w.name), commentPollMinutes: e.COMMENT_POLL_MINUTES }, "worker started");
 
+// Liveness for /health: the API can't see this process otherwise
+const beat = () =>
+  redis()
+    .set(keys.workerHeartbeat, JSON.stringify({ at: new Date().toISOString(), pid: process.pid }), "EX", 120)
+    .catch((err) => logger.warn({ err: (err as Error).message }, "heartbeat failed"));
+void beat();
+const heartbeat = setInterval(beat, 30_000);
+
 const shutdown = async () => {
   logger.info("shutting down worker");
+  clearInterval(heartbeat);
   await Promise.all(workers.map((w) => w.close()));
   await prisma.$disconnect();
   process.exit(0);

@@ -38,6 +38,9 @@ export const keys = {
 
   /** Comment polling cursor (ISO time of newest comment already seen) */
   pollSince: (accountId: string) => `${P}:poll:since:${accountId}`,
+  /** Worker liveness + last comment poll result, shown on /health */
+  workerHeartbeat: `${P}:status:worker`,
+  lastPoll: `${P}:status:poll`,
 
   lock: (name: string) => `${P}:lock:${name}`,
 };

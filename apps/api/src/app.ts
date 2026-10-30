@@ -2,7 +2,7 @@ import Fastify from "fastify";
 import cookie from "@fastify/cookie";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
-import { createRedis, env, IgApiError, redis } from "@instaauto/core";
+import { createRedis, env, IgApiError, keys, redis } from "@instaauto/core";
 import { prisma } from "@instaauto/db";
 import authRoutes from "./routes/auth.js";
 import instagramRoutes from "./routes/instagram.js";
@@ -39,7 +39,20 @@ export async function buildServer() {
     try {
       await prisma.$queryRaw`SELECT 1`;
       await redis().ping();
-      return { ok: true };
+      const [hb, poll, waiting, delayed, failed] = await Promise.all([
+        redis().get(keys.workerHeartbeat),
+        redis().get(keys.lastPoll),
+        redis().llen("bull:events:wait"),
+        redis().zcard("bull:events:delayed"),
+        redis().zcard("bull:events:failed"),
+      ]);
+      const worker = hb ? (JSON.parse(hb) as { at: string }) : null;
+      return {
+        ok: true,
+        worker: { alive: Boolean(worker), lastSeen: worker?.at ?? null },
+        lastPoll: poll ? JSON.parse(poll) : null,
+        events: { waiting, delayed, failed },
+      };
     } catch (err) {
       return reply.code(503).send({ ok: false, error: (err as Error).message });
     }

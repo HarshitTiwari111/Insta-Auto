@@ -42,8 +42,14 @@ export function createQueues(connection: Redis) {
       connection,
       defaultJobOptions: { ...defaultJobOptions, attempts: 3, backoff: { type: "exponential", delay: 60_000 } },
     }),
-    maintenance: new Queue<MaintenanceJob>(QUEUE.maintenance, { connection, defaultJobOptions: { attempts: 1 } }),
-    notify: new Queue<NotifyJob>(QUEUE.notify, { connection, defaultJobOptions: { attempts: 3 } }),
+    maintenance: new Queue<MaintenanceJob>(QUEUE.maintenance, {
+      connection,
+      defaultJobOptions: { attempts: 1, removeOnComplete: { count: 200 }, removeOnFail: { count: 500 } },
+    }),
+    notify: new Queue<NotifyJob>(QUEUE.notify, {
+      connection,
+      defaultJobOptions: { attempts: 3, removeOnComplete: { count: 500 }, removeOnFail: { age: 7 * 24 * 3600 } },
+    }),
   };
 }
 

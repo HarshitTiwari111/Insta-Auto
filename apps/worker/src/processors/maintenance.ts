@@ -134,6 +134,7 @@ async function sweepPosts() {
  */
 async function pollComments() {
   const accounts = await prisma.igAccount.findMany({ where: { paused: false } });
+  const status = { at: new Date().toISOString(), accounts: accounts.length, queued: 0, errors: [] as string[] };
   for (const acc of accounts) {
     try {
       const ig = igFor(acc);
@@ -177,13 +178,16 @@ async function pollComments() {
             },
             { jobId: dedupeKey.replace(/:/g, "_") },
           );
+          status.queued++;
         }
       }
       await redis().set(sinceKey, newest.toISOString());
     } catch (err) {
       logger.warn({ err: (err as Error).message, accountId: acc.id }, "comment poll failed");
+      status.errors.push(`@${acc.username}: ${(err as Error).message}`.slice(0, 200));
     }
   }
+  await redis().set(keys.lastPoll, JSON.stringify(status), "EX", 24 * 3600);
 }
 
 /**
