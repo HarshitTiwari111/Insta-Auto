@@ -111,10 +111,10 @@ export default function SettingsPage() {
   );
 }
 
-/** Instagram settings section: small grey heading, flat rows, thick divider below. */
+/** Instagram settings section: small grey heading and flat rows, separated by space only. */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="border-b-[6px] border-fill py-2">
+    <section className="pb-4">
       <h2 className="px-4 pb-1 pt-2 text-[14px] font-semibold text-muted">{title}</h2>
       {children}
     </section>
