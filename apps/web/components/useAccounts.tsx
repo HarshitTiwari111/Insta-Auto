@@ -5,18 +5,33 @@ import { useEffect, useRef, useState } from "react";
 import { api, type Account } from "@/lib/api";
 
 const KEY = "ia:selectedAccount";
+const EVENT = "ia:account-switched";
 
-/** Accounts list + the account currently selected in the UI (remembered per device). */
+/**
+ * Accounts list + the account currently selected in the UI. One selection for the whole app
+ * (like Instagram's account switcher): remembered per device, and every mounted screen
+ * (page, tab bar) follows a switch right away.
+ */
 export function useAccounts() {
   const query = useQuery({ queryKey: ["accounts"], queryFn: () => api<Account[]>("/accounts") });
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      setSelectedId(localStorage.getItem(KEY));
-    } catch {
-      /* storage unavailable */
-    }
+    const read = () => {
+      try {
+        setSelectedId(localStorage.getItem(KEY));
+      } catch {
+        /* storage unavailable */
+      }
+    };
+    read();
+    const onSwitch = (e: Event) => setSelectedId((e as CustomEvent<string>).detail);
+    window.addEventListener(EVENT, onSwitch);
+    window.addEventListener("storage", read); // other tabs / windows
+    return () => {
+      window.removeEventListener(EVENT, onSwitch);
+      window.removeEventListener("storage", read);
+    };
   }, []);
 
   const accounts = query.data ?? [];
@@ -29,6 +44,7 @@ export function useAccounts() {
     } catch {
       /* ignore */
     }
+    window.dispatchEvent(new CustomEvent(EVENT, { detail: id }));
   };
 
   return { ...query, accounts, selected, select };
@@ -110,6 +126,21 @@ export function AccountSwitcher({
                 </button>
               );
             })}
+            <button
+              onClick={async () => {
+                setOpen(false);
+                const { url } = await api<{ url: string }>("/ig/connect");
+                location.href = url;
+              }}
+              className="flex w-full items-center gap-3 border-t border-line px-4 py-3 text-left active:bg-fill"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </span>
+              <span className="font-semibold text-text">Add Instagram account</span>
+            </button>
           </div>
       )}
     </div>
