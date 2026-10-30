@@ -195,21 +195,9 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
           { value: "DM", label: "On DM" },
         ]}
       />
-      <Group>
-        <Field label="Rule name" value={d.name} onChange={(name) => setD({ ...d, name })} placeholder="e.g. Price enquiries" />
-      </Group>
-
-      <Group title="When">
-        <Row
-          title="Match every message"
-          right={<Toggle label="Match any" on={d.matchType === "ANY"} onChange={(v) => setD({ ...d, matchType: v ? "ANY" : "KEYWORD" })} />}
-        />
-        {d.matchType === "KEYWORD" && (
-          <Field label="Keywords (comma separated, any one matches)" value={keywords} onChange={setKeywords} placeholder="price, kitna, cost" />
-        )}
-        {isComment && (
-          <button className="press block w-full px-4 py-2.5 text-left" onClick={() => setPicking(true)}>
-            <span className="mb-1 block text-[13px] text-muted">Runs on</span>
+      {isComment && (
+        <Group title="Post / reel" footer="Choose the posts or reels this rule replies on. Nothing chosen = all posts and reels.">
+          <button className="press block w-full px-4 py-3 text-left" onClick={() => setPicking(true)}>
             <span className="flex items-center gap-2">
               {d.mediaIds.length === 0 ? (
                 <span className="text-[16px]">All posts &amp; reels</span>
@@ -228,17 +216,30 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
               <span className="ml-auto text-[15px] font-semibold text-accent">Choose ›</span>
             </span>
           </button>
-        )}
-        {picking && (
-          <MediaPicker
-            accountId={accountId}
-            selected={d.mediaIds}
-            onClose={() => setPicking(false)}
-            onDone={(mediaIds) => {
-              setD({ ...d, mediaIds });
-              setPicking(false);
-            }}
-          />
+        </Group>
+      )}
+      {picking && (
+        <MediaPicker
+          accountId={accountId}
+          selected={d.mediaIds}
+          onClose={() => setPicking(false)}
+          onDone={(mediaIds) => {
+            setD({ ...d, mediaIds });
+            setPicking(false);
+          }}
+        />
+      )}
+      <Group>
+        <Field label="Rule name" value={d.name} onChange={(name) => setD({ ...d, name })} placeholder="e.g. Price enquiries" />
+      </Group>
+
+      <Group title="When">
+        <Row
+          title="Match every message"
+          right={<Toggle label="Match any" on={d.matchType === "ANY"} onChange={(v) => setD({ ...d, matchType: v ? "ANY" : "KEYWORD" })} />}
+        />
+        {d.matchType === "KEYWORD" && (
+          <Field label="Keywords (comma separated, any one matches)" value={keywords} onChange={setKeywords} placeholder="price, kitna, cost" />
         )}
       </Group>
 
