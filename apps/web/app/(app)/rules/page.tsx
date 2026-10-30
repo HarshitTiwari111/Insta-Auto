@@ -212,7 +212,7 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
   return (
     <Sheet open onClose={onClose} title={id ? "Edit rule" : "New rule"}>
       <Step n={n()} title="When someone…">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="overflow-hidden rounded-xl border border-card-border bg-card [&>*+*]:border-t [&>*+*]:border-line">
           <Choice on={isComment} onClick={() => setD({ ...d, trigger: "COMMENT" })} icon="💬" title="Comments" text="on my posts" />
           <Choice on={!isComment} onClick={() => setD({ ...d, trigger: "DM" })} icon="📩" title="Sends a DM" text="to my account" />
         </div>
@@ -252,7 +252,7 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
       )}
 
       <Step n={n()} title={isComment ? "Which comments?" : "Which messages?"}>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="overflow-hidden rounded-xl border border-card-border bg-card [&>*+*]:border-t [&>*+*]:border-line">
           <Choice on={d.matchType === "KEYWORD"} onClick={() => setD({ ...d, matchType: "KEYWORD" })} icon="🔑" title="With certain words" text="e.g. price, kitna" />
           <Choice on={d.matchType === "ANY"} onClick={() => setD({ ...d, matchType: "ANY" })} icon="🌐" title={isComment ? "Every comment" : "Every message"} text="no words needed" />
         </div>
@@ -265,7 +265,7 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
       </Step>
 
       <Step n={n()} title="What should happen?">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="overflow-hidden rounded-xl border border-card-border bg-card [&>*+*]:border-t [&>*+*]:border-line">
           <Choice on={act === "reply"} onClick={() => setAction("reply")} icon="✍️" title="Reply with my text" text="you write it" />
           <Choice on={act === "ai"} onClick={() => setAction("ai")} icon="✨" title="AI writes the reply" text="reads the message" />
           {isComment && <Choice on={act === "hide"} onClick={() => setAction("hide")} icon="🙈" title="Hide the comment" text="for spam" />}
@@ -386,17 +386,18 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
   );
 }
 
-/** Big tappable option card */
+/** One-line option row: icon, title, hint, radio circle on the right */
 function Choice({ on, onClick, icon, title, text }: { on: boolean; onClick: () => void; icon: string; title: string; text: string }) {
   return (
-    <button
-      onClick={onClick}
-      aria-pressed={on}
-      className={`press rounded-xl border-2 px-3 py-3 text-left transition ${on ? "border-accent bg-accent/10" : "border-card-border bg-card"}`}
-    >
-      <div className="text-[20px]">{icon}</div>
-      <div className="mt-1 text-[15px] font-semibold leading-tight">{title}</div>
-      <div className="text-[12px] text-muted">{text}</div>
+    <button onClick={onClick} aria-pressed={on} className="press flex w-full items-center gap-3 px-4 py-3 text-left active:bg-fill">
+      <span className="w-6 shrink-0 text-center text-[18px]">{icon}</span>
+      <span className="min-w-0 flex-1 truncate text-[15px]">
+        <span className="font-semibold">{title}</span>
+        <span className="text-muted"> · {text}</span>
+      </span>
+      <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${on ? "border-accent" : "border-line"}`}>
+        {on && <span className="h-2.5 w-2.5 rounded-full bg-accent" />}
+      </span>
     </button>
   );
 }
