@@ -134,7 +134,7 @@ export default function RulesPage() {
 function describe(r: Rule): string {
   const what = r.trigger === "DM" ? "DMs" : "Comments";
   const where = r.trigger === "COMMENT" ? (r.mediaIds?.length ? ` on ${r.mediaIds.length} chosen post${r.mediaIds.length === 1 ? "" : "s"}` : "") : "";
-  const when = r.matchType === "ANY" ? `All ${what.toLowerCase()}` : `${what} with ${r.keywords.map((k) => `“${k}”`).join(", ")}`;
+  const when = r.matchType === "ANY" ? (r.trigger === "DM" ? "All DMs" : "All comments") : `${what} with ${r.keywords.map((k) => `“${k}”`).join(", ")}`;
   const acts = [
     r.deleteComment && "delete it",
     r.hideComment && "hide it",
