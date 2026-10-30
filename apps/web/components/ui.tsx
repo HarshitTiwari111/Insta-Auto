@@ -135,19 +135,21 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
   }, [open]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex justify-center bg-bg">
       <div
-        // Same width as the app column (max-w-xl), so on a computer it doesn't stretch across the screen
-        className="sheet no-scrollbar pb-safe max-h-[92dvh] w-full max-w-xl overflow-y-auto rounded-t-2xl bg-bg"
-        onClick={(e) => e.stopPropagation()}
+        // Full screen like the Inbox chat (and Instagram's own editors); app-column width on a computer
+        className="sheet no-scrollbar pb-safe h-dvh w-full max-w-xl overflow-y-auto bg-bg"
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between bg-bg/90 px-4 py-3 backdrop-blur">
-          <button onClick={onClose} className="text-[17px] text-accent">
-            Cancel
-          </button>
-          <span className="text-[17px] font-semibold">{title}</span>
-          <span className="w-14" />
+        <div className="pt-safe sticky top-0 z-10 border-b border-line bg-bg/95 backdrop-blur">
+          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 px-4 py-3">
+            <button onClick={onClose} className="text-[16px] text-accent">
+              Cancel
+            </button>
+            <span className="truncate text-center text-[17px] font-semibold">{title}</span>
+            <span className="w-[52px]" />
+          </div>
         </div>
+        <div className="pt-3" />
         <div className="pb-6">{children}</div>
       </div>
     </div>
