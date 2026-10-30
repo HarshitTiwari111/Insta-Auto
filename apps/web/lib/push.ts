@@ -18,6 +18,11 @@ export async function enablePush(): Promise<void> {
   const { key } = await api<{ key: string | null }>("/push/public-key");
   if (!key) throw new Error("Server has no VAPID keys configured");
   const permission = await Notification.requestPermission();
+  if (permission === "denied") {
+    throw new Error(
+      "Notifications are blocked for this site in your browser. Click the icon left of the address bar → Notifications → Allow, then reload and try again.",
+    );
+  }
   if (permission !== "granted") throw new Error("Notification permission was not granted");
   const reg = await navigator.serviceWorker.ready;
   const sub =
