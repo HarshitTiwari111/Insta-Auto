@@ -80,9 +80,13 @@ export default function RulesPage() {
       <ErrorNote error={rules.error} />
       {tab === "DM" && (
         <div className="mx-4 mb-4">
-          <Link href="/flows" className="press flex items-center justify-between rounded-xl border border-card-border bg-card px-4 py-3.5 text-[17px]">
-            <span>🤖 Chatbot flows</span>
-            <span className="text-muted">Step-by-step DM menus ›</span>
+          <Link href="/flows" className="press flex items-center gap-3 rounded-xl border border-card-border bg-card px-4 py-3">
+            <span className="text-[18px]">🤖</span>
+            <span className="min-w-0 flex-1 truncate text-[15px]">
+              <span className="font-semibold">Chatbot flows</span>
+              <span className="text-muted"> · DM menus</span>
+            </span>
+            <span className="text-muted">›</span>
           </Link>
         </div>
       )}
@@ -108,7 +112,7 @@ export default function RulesPage() {
                 setEditing({ id, draft });
               }}
               title={r.name}
-              subtitle={describe(r)}
+              subtitle={<span className="line-clamp-2 whitespace-normal">{describe(r)}</span>}
               right={<Toggle label={`Enable ${r.name}`} on={r.enabled} onChange={() => toggle.mutate(r.id)} />}
             />
           ))}
@@ -129,15 +133,15 @@ export default function RulesPage() {
 
 function describe(r: Rule): string {
   const what = r.trigger === "DM" ? "DMs" : "Comments";
-  const where = r.trigger === "COMMENT" ? (r.mediaIds?.length ? ` on ${r.mediaIds.length} chosen post${r.mediaIds.length === 1 ? "" : "s"}` : " on all posts") : "";
+  const where = r.trigger === "COMMENT" ? (r.mediaIds?.length ? ` on ${r.mediaIds.length} chosen post${r.mediaIds.length === 1 ? "" : "s"}` : "") : "";
   const when = r.matchType === "ANY" ? `All ${what.toLowerCase()}` : `${what} with ${r.keywords.map((k) => `“${k}”`).join(", ")}`;
   const acts = [
     r.deleteComment && "delete it",
     r.hideComment && "hide it",
-    r.aiReply && "AI writes a reply",
+    r.aiReply && "AI reply",
     !r.aiReply && !r.hideComment && !r.deleteComment && r.replyTemplates.length && "reply",
-    r.privateReplyTemplates.length && "send a private DM",
-    r.quickReplies?.length && "show buttons",
+    r.privateReplyTemplates.length && "private DM",
+    r.quickReplies?.length && "buttons",
   ].filter(Boolean);
   return `${when}${where} → ${acts.join(" + ")}`;
 }
@@ -270,15 +274,15 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
         </div>
         {d.matchType === "KEYWORD" && (
           <div className="mt-3">
-            <ChipInput values={keywords} onChange={setKeywords} placeholder="Type a word and press Enter" />
+            <ChipInput values={keywords} onChange={setKeywords} placeholder="Type a word and press Enter" more="Add another word…" />
           </div>
         )}
       </Step>
 
       <Step n={n()} title="What should happen?">
         <div className="overflow-hidden rounded-xl border border-card-border bg-card [&>*+*]:border-t [&>*+*]:border-line">
-          <Choice on={act === "reply"} onClick={() => setAction("reply")} icon="✍️" title="Reply with my text" text="you write it" />
-          <Choice on={act === "ai"} onClick={() => setAction("ai")} icon="✨" title="AI writes the reply" text="reads the message" />
+          <Choice on={act === "reply"} onClick={() => setAction("reply")} icon="✍️" title="My own reply" text="you write it" />
+          <Choice on={act === "ai"} onClick={() => setAction("ai")} icon="✨" title="AI writes the reply" text="smart" />
           {isComment && <Choice on={act === "hide"} onClick={() => setAction("hide")} icon="🙈" title="Hide the comment" text="for spam" />}
           {isComment && <Choice on={act === "delete"} onClick={() => setAction("delete")} icon="🗑️" title="Delete the comment" text="for spam" />}
         </div>
@@ -323,7 +327,7 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
 
       {!isComment && replying && (
         <Step n={n()} title="Extras (optional)">
-          <ChipInput values={buttons} onChange={setButtons} placeholder="Buttons (optional), e.g. Price, Services" max={13} maxLen={20} />
+          <ChipInput values={buttons} onChange={setButtons} placeholder="Buttons (optional), e.g. Price, Services" more="Add another button…" max={13} maxLen={20} />
           <div className="mt-3 rounded-xl border border-card-border bg-card">
             <DmMedia url={d.replyMediaUrl} onChange={(replyMediaUrl) => setD({ ...d, replyMediaUrl })} />
           </div>
@@ -417,7 +421,7 @@ function Box({ label, value, onChange, placeholder, single }: { label: string; v
 }
 
 /** Words as chips: type and press Enter (or comma) to add, ✕ to remove. */
-function ChipInput({ values, onChange, placeholder, max = 50, maxLen = 100 }: { values: string[]; onChange: (v: string[]) => void; placeholder: string; max?: number; maxLen?: number }) {
+function ChipInput({ values, onChange, placeholder, more = "Add another…", max = 50, maxLen = 100 }: { values: string[]; onChange: (v: string[]) => void; placeholder: string; more?: string; max?: number; maxLen?: number }) {
   const [text, setText] = useState("");
   const add = (raw: string) => {
     const words = raw.split(",").map((w) => w.trim().slice(0, maxLen)).filter(Boolean);
@@ -439,7 +443,7 @@ function ChipInput({ values, onChange, placeholder, max = 50, maxLen = 100 }: { 
       <input
         className="min-w-[140px] flex-1 bg-transparent py-1 text-[15px] outline-none placeholder:text-muted"
         value={text}
-        placeholder={values.length ? "Add another…" : placeholder}
+        placeholder={values.length ? more : placeholder}
         onChange={(e) => (e.target.value.includes(",") ? add(e.target.value) : setText(e.target.value))}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
