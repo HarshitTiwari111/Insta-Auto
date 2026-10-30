@@ -113,6 +113,13 @@ export default async function accountRoutes(app: FastifyInstance) {
    * Analytics from data the basic permission allows: live profile counters, our daily follower
    * snapshots (growth), and likes/comments on the latest 25 posts (engagement, best posts).
    */
+  /** Instagram profile counters (posts / followers / following) for the Posts page header. */
+  app.get<{ Params: { id: string } }>("/accounts/:id/profile", async (req, reply) => {
+    const ig = await igClientFor(req.params.id);
+    if (!ig) return reply.code(404).send({ error: "not_found" });
+    return cached<IgProfile>(redis(), keys.profile(req.params.id), 600, () => ig.profile());
+  });
+
   app.get<{ Params: { id: string }; Querystring: { days?: string } }>("/accounts/:id/analytics", async (req, reply) => {
     const ig = await igClientFor(req.params.id);
     if (!ig) return reply.code(404).send({ error: "not_found" });

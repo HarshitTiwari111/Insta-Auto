@@ -36,19 +36,22 @@ export function useAccounts() {
 
 export function AccountSwitcher({ accounts, selected, onSelect }: { accounts: Account[]; selected: Account | null; onSelect: (id: string) => void }) {
   if (accounts.length < 2 || !selected) return null;
+  // Story-style row: tap an avatar to switch account (selected one gets the gradient ring)
   return (
-    <div className="mx-4 mb-4">
-      <select
-        className="w-full rounded-xl border border-card-border bg-card px-4 py-3 text-[17px] outline-none"
-        value={selected.id}
-        onChange={(e) => onSelect(e.target.value)}
-      >
-        {accounts.map((a) => (
-          <option key={a.id} value={a.id}>
-            @{a.username}
-          </option>
-        ))}
-      </select>
+    <div className="no-scrollbar mx-4 mb-4 flex gap-4 overflow-x-auto">
+      {accounts.map((a) => {
+        const on = a.id === selected.id;
+        return (
+          <button key={a.id} onClick={() => onSelect(a.id)} className="press flex w-[68px] shrink-0 flex-col items-center gap-1">
+            <span className={`flex h-[64px] w-[64px] items-center justify-center rounded-full p-[2.5px] ${on ? "ig-gradient" : "bg-line"}`}>
+              <span className="flex h-full w-full items-center justify-center overflow-hidden rounded-full border-[3px] border-bg bg-fill text-[18px] font-semibold uppercase">
+                {a.profilePictureUrl ? <img src={a.profilePictureUrl} alt="" className="h-full w-full object-cover" /> : a.username.slice(0, 1)}
+              </span>
+            </span>
+            <span className={`w-full truncate text-center text-[12px] ${on ? "font-semibold" : "text-muted"}`}>{a.username}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

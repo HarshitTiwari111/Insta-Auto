@@ -6,8 +6,91 @@ import { uploadMedia } from "@/lib/upload";
 import { api, type Post } from "@/lib/api";
 import { AccountSwitcher, useAccounts } from "@/components/useAccounts";
 import { Badge, Button, Empty, ErrorNote, Field, Group, Header, Row, Segmented, Sheet } from "@/components/ui";
+import { Avatar } from "@/components/Avatar";
 import { PostViewer, type ViewPost } from "@/components/PostViewer";
 import { isReel, useAllMedia } from "@/components/MediaPicker";
+
+type View = "grid" | "reels" | "scheduled" | "calendar" | "drafts";
+
+function Count({ n, label }: { n?: number; label: string }) {
+  return (
+    <div>
+      <div className="text-[17px] font-semibold">{n === undefined ? "–" : n.toLocaleString()}</div>
+      <div className="text-[13px]">{label}</div>
+    </div>
+  );
+}
+
+const svgProps = { fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round", strokeLinejoin: "round" } as const;
+const GridIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" {...svgProps}>
+    <rect x="3" y="3" width="18" height="18" rx="1.5" />
+    <path d="M9 3v18M15 3v18M3 9h18M3 15h18" />
+  </svg>
+);
+function ReelIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...svgProps}>
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <path d="M3 8.5h18M8.5 3l3 5.5M14 3l3 5.5" />
+      <path d="M10.5 12v5l4-2.5z" fill="currentColor" />
+    </svg>
+  );
+}
+const CarouselIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" {...svgProps}>
+    <rect x="7" y="7" width="14" height="14" rx="2" />
+    <path d="M17 3H5a2 2 0 0 0-2 2v12" />
+  </svg>
+);
+const ClockIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" {...svgProps}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </svg>
+);
+const CalIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" {...svgProps}>
+    <rect x="3" y="4.5" width="18" height="16.5" rx="2" />
+    <path d="M3 9.5h18M8 2.5v4M16 2.5v4" />
+  </svg>
+);
+const DraftIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" {...svgProps}>
+    <path d="M6 3h12v18l-6-4-6 4z" />
+  </svg>
+);
+
+/** Instagram profile tabs: icons with an underline on the active one. */
+function IconTabs({ value, onChange, counts }: { value: View; onChange: (v: View) => void; counts: { scheduled: number; drafts: number } }) {
+  const tabs: { v: View; label: string; icon: React.ReactNode; badge?: number }[] = [
+    { v: "grid", label: "Posts", icon: <GridIcon /> },
+    { v: "reels", label: "Reels", icon: <ReelIcon /> },
+    { v: "scheduled", label: "Scheduled", icon: <ClockIcon />, badge: counts.scheduled },
+    { v: "calendar", label: "Calendar", icon: <CalIcon /> },
+    { v: "drafts", label: "Drafts", icon: <DraftIcon />, badge: counts.drafts },
+  ];
+  return (
+    <div className="mb-0.5 flex border-t border-line">
+      {tabs.map((t) => (
+        <button
+          key={t.v}
+          aria-label={t.label}
+          title={t.label}
+          onClick={() => onChange(t.v)}
+          className={`relative -mt-px flex flex-1 justify-center border-t py-3 ${value === t.v ? "border-text text-text" : "border-transparent text-muted"}`}
+        >
+          {t.icon}
+          {!!t.badge && (
+            <span className="absolute right-[calc(50%-20px)] top-1.5 min-w-[16px] rounded-full bg-accent px-1 text-center text-[10px] font-bold leading-4 text-white">
+              {t.badge}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const STATUS_TONE = { DRAFT: "muted", PENDING: "accent", PUBLISHING: "accent", PUBLISHED: "ok", FAILED: "danger", CANCELLED: "muted" } as const;
 
@@ -19,7 +102,7 @@ export default function PostsPage() {
   const [ideaCaption, setIdeaCaption] = useState<string | undefined>(undefined);
   const [showIdeas, setShowIdeas] = useState(false);
   const [viewing, setViewing] = useState<ViewPost | null>(null);
-  const [view, setView] = useState<"scheduled" | "calendar" | "drafts" | "live">("scheduled");
+  const [view, setView] = useState<View>("grid");
 
   const posts = useQuery({
     queryKey: ["posts", selected?.id],
@@ -27,9 +110,15 @@ export default function PostsPage() {
     enabled: Boolean(selected),
     refetchInterval: 30_000,
   });
-  // Every post/reel on the account; Reels filter on top like Instagram's profile tabs
-  const media = useAllMedia(selected?.id ?? "", Boolean(selected) && view === "live");
-  const [onlyReels, setOnlyReels] = useState(false);
+  // Every post/reel on the account (grid + reels tabs)
+  const live = view === "grid" || view === "reels";
+  const media = useAllMedia(selected?.id ?? "", Boolean(selected) && live);
+  const profile = useQuery({
+    queryKey: ["profile", selected?.id],
+    queryFn: () => api<{ followers_count?: number; follows_count?: number; media_count?: number }>(`/accounts/${selected!.id}/profile`),
+    enabled: Boolean(selected),
+    staleTime: 600_000,
+  });
   const act = useMutation({
     mutationFn: ({ id, action }: { id: string; action: "cancel" | "retry" }) => api(`/posts/${id}/${action}`, { method: "POST" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["posts"] }),
@@ -50,33 +139,48 @@ export default function PostsPage() {
   return (
     <>
       <Header
-        title="Posts"
+        title={selected.username}
         right={
-          <button className="text-[17px] text-accent" onClick={() => setEditing("new")}>
-            New
+          <button aria-label="New post" className="press block p-1" onClick={() => setEditing("new")}>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="5" />
+              <path d="M12 8v8M8 12h8" />
+            </svg>
           </button>
         }
       />
       <AccountSwitcher accounts={accounts} selected={selected} onSelect={select} />
-      <div className="mx-4 mb-3">
-        <button className="press w-full rounded-xl border border-card-border bg-card px-4 py-3 text-left text-[17px] text-accent" onClick={() => setShowIdeas(true)}>
-          💡 Content ideas with AI
-        </button>
+
+      {/* Instagram-style profile block */}
+      <div className="mx-4 mb-4">
+        <div className="flex items-center gap-6">
+          <Avatar src={selected.profilePictureUrl} name={selected.username} size={80} />
+          <div className="flex flex-1 justify-around text-center">
+            <Count n={profile.data?.media_count ?? media.data?.length} label="posts" />
+            <Count n={profile.data?.followers_count} label="followers" />
+            <Count n={profile.data?.follows_count} label="following" />
+          </div>
+        </div>
+        <div className="mt-3 text-[14px] font-semibold">@{selected.username}</div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button className="press rounded-lg bg-fill py-2 text-[14px] font-semibold" onClick={() => setEditing("new")}>
+            New post
+          </button>
+          <button className="press rounded-lg bg-fill py-2 text-[14px] font-semibold" onClick={() => setShowIdeas(true)}>
+            ✨ AI ideas
+          </button>
+        </div>
       </div>
-      <Segmented
+
+      <IconTabs
         value={view}
         onChange={setView}
-        options={[
-          { value: "scheduled", label: "Scheduled" },
-          { value: "calendar", label: "Calendar" },
-          { value: "drafts", label: "Drafts" },
-          { value: "live", label: "Instagram" },
-        ]}
+        counts={{ scheduled: scheduled.filter((p) => p.status === "PENDING").length, drafts: drafts.length }}
       />
-      <ErrorNote error={posts.error ?? act.error ?? (view === "live" ? media.error : null)} />
+      <ErrorNote error={posts.error ?? act.error ?? (live ? media.error : null)} />
 
       {view === "scheduled" && (
-        <>
+        <div className="pt-4">
           {scheduled.length === 0 && posts.data && (
             <Empty icon="🗓️" text="Nothing scheduled. Tap New to plan a post, reel, story or carousel." />
           )}
@@ -87,13 +191,17 @@ export default function PostsPage() {
               ))}
             </Group>
           )}
-        </>
+        </div>
       )}
 
-      {view === "calendar" && <Calendar accountId={selected.id} onEdit={setEditing} />}
+      {view === "calendar" && (
+        <div className="pt-4">
+          <Calendar accountId={selected.id} onEdit={setEditing} />
+        </div>
+      )}
 
       {view === "drafts" && (
-        <>
+        <div className="pt-4">
           {drafts.length === 0 && posts.data && <Empty icon="📝" text="No drafts. In New, tap Save as draft to keep an idea for later." />}
           {drafts.length > 0 && (
             <Group footer="Drafts are never published until you schedule them.">
@@ -102,25 +210,15 @@ export default function PostsPage() {
               ))}
             </Group>
           )}
-        </>
-      )}
-
-      {view === "live" && media.data && (
-        <div className="mx-4 mb-3 flex gap-2">
-          {([false, true] as const).map((r) => (
-            <button
-              key={String(r)}
-              onClick={() => setOnlyReels(r)}
-              className={`rounded-full px-3 py-1.5 text-[14px] font-semibold ${onlyReels === r ? "bg-text text-bg" : "bg-fill text-text"}`}
-            >
-              {r ? `Reels (${media.data.filter(isReel).length})` : `All (${media.data.length})`}
-            </button>
-          ))}
         </div>
       )}
-      {view === "live" && (
-        <div className="mx-4 grid grid-cols-3 gap-1">
-          {media.data?.filter((m) => !onlyReels || isReel(m)).map((m) => (
+
+      {live && media.data && media.data.filter((m) => view === "grid" || isReel(m)).length === 0 && (
+        <Empty icon={view === "reels" ? "🎬" : "📷"} text={view === "reels" ? "No reels yet." : "No posts yet."} />
+      )}
+      {live && (
+        <div className="grid grid-cols-3 gap-0.5">
+          {media.data?.filter((m) => view === "grid" || isReel(m)).map((m) => (
             <button
               key={m.id}
               onClick={() =>
@@ -135,13 +233,25 @@ export default function PostsPage() {
                   timestamp: m.timestamp,
                 })
               }
-              className="press relative aspect-square overflow-hidden rounded-md bg-card"
+              className={`group relative overflow-hidden bg-fill ${view === "reels" ? "aspect-[9/16]" : "aspect-[3/4]"}`}
             >
               {(m.thumbnail_url ?? m.media_url) && (
                 <img src={m.thumbnail_url ?? m.media_url} alt="" className="h-full w-full object-cover" loading="lazy" />
               )}
-              <span className="absolute inset-x-0 bottom-0 bg-black/50 px-1.5 py-0.5 text-[11px] text-white">
-                ♥ {m.like_count ?? 0} · 💬 {m.comments_count ?? 0}
+              {/* type icon top-right, like Instagram */}
+              {(isReel(m) || m.media_type === "CAROUSEL_ALBUM") && (
+                <span className="absolute right-1.5 top-1.5 text-white drop-shadow">{isReel(m) ? <ReelIcon size={18} /> : <CarouselIcon />}</span>
+              )}
+              {/* likes / comments: always on reels tab, on hover in the grid */}
+              <span
+                className={`absolute inset-0 flex justify-center gap-4 text-[14px] font-semibold text-white transition-opacity ${
+                  view === "reels"
+                    ? "items-end bg-gradient-to-t from-black/50 to-transparent pb-2"
+                    : "items-center bg-black/35 opacity-0 group-hover:opacity-100"
+                }`}
+              >
+                <span>♥ {m.like_count ?? 0}</span>
+                <span>💬 {m.comments_count ?? 0}</span>
               </span>
             </button>
           ))}
