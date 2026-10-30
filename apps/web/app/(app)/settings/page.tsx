@@ -78,7 +78,7 @@ export default function SettingsPage() {
             right={<Toggle label={`Run @${a.username}`} on={!a.paused} onChange={(run) => patch.mutate({ id: a.id, body: { paused: !run } })} />}
           />
         ))}
-        <SettingRow onClick={() => connect.mutate()} icon={<RoundIcon>{I.plus}</RoundIcon>} title={<span className="text-accent">Add Instagram account</span>} />
+        <SettingRow onClick={() => connect.mutate()} icon={<RoundIcon>{I.plus}</RoundIcon>} title={<span className="text-accent">Connect Instagram account</span>} />
         <p className="px-4 pb-1 pt-1 text-[12px] text-muted">Business or Creator accounts only. Tap an account for limits, blocked accounts, backup or removal.</p>
       </Section>
 

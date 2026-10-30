@@ -139,7 +139,7 @@ export function AccountSwitcher({
                   <path d="M12 5v14M5 12h14" />
                 </svg>
               </span>
-              <span className="font-semibold text-text">Add Instagram account</span>
+              <span className="font-semibold text-text">Connect Instagram account</span>
             </button>
           </div>
       )}
