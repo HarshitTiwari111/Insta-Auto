@@ -143,6 +143,8 @@ function Chat({
   onClose: () => void;
 }) {
   const end = useRef<HTMLDivElement>(null);
+  // Their Instagram profile (opens the Instagram app on a phone)
+  const profile = username ? `https://www.instagram.com/${encodeURIComponent(username)}/` : undefined;
   const oldestFirst = [...thread].reverse();
 
   useEffect(() => {
@@ -166,19 +168,28 @@ function Chat({
               <path d="M15 18l-6-6 6-6" />
             </svg>
           </button>
-          <Avatar name={username ?? "?"} size={34} />
-          <div className="min-w-0">
-            <div className="truncate text-[16px] font-semibold">{title}</div>
-            <div className="text-[12px] text-muted">Instagram</div>
-          </div>
+          <a href={profile} target="_blank" rel="noopener noreferrer" className="press flex min-w-0 items-center gap-3">
+            <Avatar name={username ?? "?"} size={34} />
+            <div className="min-w-0">
+              <div className="truncate text-[16px] font-semibold">{title}</div>
+              <div className="text-[12px] text-muted">Instagram</div>
+            </div>
+          </a>
         </div>
 
         {/* messages */}
         <div className="no-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
           <div className="mb-4 flex flex-col items-center gap-2 pt-4 text-center">
-            <Avatar name={username ?? "?"} size={84} />
-            <div className="text-[18px] font-semibold">{title}</div>
-            <div className="text-[13px] text-muted">Instagram</div>
+            <a href={profile} target="_blank" rel="noopener noreferrer" className="press flex flex-col items-center gap-2">
+              <Avatar name={username ?? "?"} size={84} />
+              <div className="text-[18px] font-semibold">{title}</div>
+              <div className="text-[13px] text-muted">Instagram</div>
+            </a>
+            {profile && (
+              <a href={profile} target="_blank" rel="noopener noreferrer" className="press mt-1 rounded-lg bg-fill px-4 py-1.5 text-[14px] font-semibold">
+                View profile
+              </a>
+            )}
           </div>
           {oldestFirst.map((m, i) => {
             const prev = oldestFirst[i - 1];
