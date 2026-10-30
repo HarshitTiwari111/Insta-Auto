@@ -174,7 +174,7 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
             : null;
 
   const save = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const name = d.name.trim() || (d.matchType === "ANY" ? (isComment ? "Every comment" : "Every DM") : `Reply to: ${keywords.join(", ")}`).slice(0, 100);
       const body: Draft = {
         ...d,
@@ -190,10 +190,23 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
         replyMediaUrl: isComment ? null : d.replyMediaUrl?.trim() || null,
         mediaIds: isComment ? d.mediaIds : [],
       };
-      return id ? api(`/rules/${id}`, { method: "PUT", json: body }) : api(`/accounts/${accountId}/rules`, { method: "POST", json: body });
+      const saved = await (id ? api(`/rules/${id}`, { method: "PUT", json: body }) : api(`/accounts/${accountId}/rules`, { method: "POST", json: body }));
+      // Every reply is also kept as a "saved reply" for reuse in other rules (no separate save step)
+      try {
+        const have = new Set((await api<MessageTemplate[]>("/templates")).map((t) => t.text.trim()));
+        for (const text of [...body.replyTemplates, ...body.privateReplyTemplates].map((t) => t.trim().slice(0, 1000))) {
+          if (!text || have.has(text)) continue;
+          have.add(text);
+          await api("/templates", { method: "POST", json: { name: text.slice(0, 30), text } });
+        }
+      } catch {
+        /* saved replies are a convenience; the rule itself is saved */
+      }
+      return saved;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["rules"] });
+      qc.invalidateQueries({ queryKey: ["templates"] });
       onClose();
     },
   });
@@ -302,7 +315,7 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
           {sendDm && (
             <div className="mt-3">
               <Box label="Private DM" value={privateReplies} onChange={setPrivateReplies} placeholder="Hi! Here are the details you asked for: …" />
-              <TemplatePicker current={privateReplies} forDm onInsert={(t) => setPrivateReplies(privateReplies.trim() ? `${privateReplies.trim()}\n${t}` : t)} />
+              <TemplatePicker current={privateReplies} onInsert={(t) => setPrivateReplies(privateReplies.trim() ? `${privateReplies.trim()}\n${t}` : t)} />
             </div>
           )}
         </Step>
@@ -500,46 +513,29 @@ interface MessageTemplate {
  * Templates library: tap a saved template to add it as one more reply line (one line = one variant).
  * "Save" stores the box's last line as a new template for every rule.
  */
-function TemplatePicker({ current, onInsert, forDm }: { current: string; onInsert: (text: string) => void; forDm?: boolean }) {
+function TemplatePicker({ current, onInsert }: { current: string; onInsert: (text: string) => void }) {
   const qc = useQueryClient();
   const list = useQuery({ queryKey: ["templates"], queryFn: () => api<MessageTemplate[]>("/templates") });
-  const add = useMutation({
-    mutationFn: (body: { name: string; text: string }) => api("/templates", { method: "POST", json: body }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
-  });
   const drop = useMutation({
     mutationFn: (id: string) => api(`/templates/${id}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
   });
-  const last = current.split("\n").map((l) => l.trim()).filter(Boolean).at(-1);
+  const inBox = new Set(lines(current));
+  const options = (list.data ?? []).filter((t) => !inBox.has(t.text.trim()));
+  if (!options.length) return null;
   return (
-    <div className="mt-2 px-1">
-      <div className="flex items-center justify-between">
-        <span className="text-[13px] text-muted">Saved replies{list.data?.length ? "" : ": none yet"}</span>
-        <button
-          className="text-[13px] font-semibold text-accent"
-          onClick={() => {
-            if (!last) return alert("Write a reply in the box above first, then save it.");
-            const name = prompt("Name for this saved reply:", last.slice(0, 30))?.trim();
-            if (name) add.mutate({ name, text: last });
-          }}
-        >
-          ＋ Save this reply
-        </button>
+    <div className="mt-2 flex items-center gap-2 px-1">
+      <span className="shrink-0 text-[13px] text-muted">Use a saved reply:</span>
+      <div className="no-scrollbar flex gap-2 overflow-x-auto">
+        {options.map((t) => (
+          <span key={t.id} className="flex shrink-0 items-center gap-1.5 rounded-full border border-card-border bg-card py-1 pl-3 pr-2 text-[13px]" title={t.text}>
+            <button onClick={() => onInsert(t.text)}>{t.name}</button>
+            <button aria-label={`Delete ${t.name}`} className="text-muted" onClick={() => confirm(`Delete saved reply “${t.name}”?`) && drop.mutate(t.id)}>
+              ✕
+            </button>
+          </span>
+        ))}
       </div>
-      {!!list.data?.length && (
-        <div className="no-scrollbar mt-1.5 flex gap-2 overflow-x-auto">
-          {list.data.map((t) => (
-            <span key={t.id} className="flex shrink-0 items-center gap-1.5 rounded-full border border-card-border bg-card py-1 pl-3 pr-2 text-[13px]" title={t.text}>
-              <button onClick={() => onInsert(t.text)}>{t.name}</button>
-              <button aria-label={`Delete ${t.name}`} className="text-muted" onClick={() => confirm(`Delete saved reply “${t.name}”?`) && drop.mutate(t.id)}>
-                ✕
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-      {(add.error || drop.error) && <p className="mt-1 text-[13px] text-danger">{((add.error ?? drop.error) as Error).message}</p>}
     </div>
   );
 }
