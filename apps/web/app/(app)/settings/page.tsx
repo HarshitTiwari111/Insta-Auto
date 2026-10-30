@@ -57,7 +57,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <Header title="Settings" />
+      <Header title="Settings and activity" />
       {banner && (
         <p className={`mx-4 mb-4 rounded-xl px-4 py-3 text-[15px] ${banner.ok ? "bg-ok/15 text-ok" : "bg-danger/10 text-danger"}`}>
           {banner.text}
@@ -65,39 +65,134 @@ export default function SettingsPage() {
       )}
       <ErrorNote error={error ?? connect.error ?? patch.error} />
 
-      <Group title="Instagram accounts" footer="Business or Creator accounts only. Tap an account for limits, reconnect or removal.">
+      <Section title="Your accounts">
         {accounts.map((a) => (
-          <Row
+          <SettingRow
             key={a.id}
             onClick={() => setEditing(a)}
-            left={<Avatar src={a.profilePictureUrl} name={a.username} size={36} />}
-            title={`@${a.username}`}
+            icon={<Avatar src={a.profilePictureUrl} name={a.username} size={40} />}
+            title={a.username}
             subtitle={`${a.paused ? "Paused" : "Running"} · ${
               a.authType === "FACEBOOK" ? "via Facebook Page" : `token expires ${new Date(a.tokenExpiresAt).toLocaleDateString()}`
             }${a.webhooksSubscribed ? "" : " · webhooks off"}`}
             right={<Toggle label={`Run @${a.username}`} on={!a.paused} onChange={(run) => patch.mutate({ id: a.id, body: { paused: !run } })} />}
           />
         ))}
-        <Row onClick={() => connect.mutate()} title={<span className="text-accent">＋ Connect Instagram account</span>} />
-      </Group>
+        <SettingRow onClick={() => connect.mutate()} icon={<RoundIcon>{I.plus}</RoundIcon>} title={<span className="text-accent">Add Instagram account</span>} />
+        <p className="px-4 pb-1 pt-1 text-[12px] text-muted">Business or Creator accounts only. Tap an account for limits, blocked accounts, backup or removal.</p>
+      </Section>
 
-      <Group title="Notifications" footer="iPhone: works only from the Home Screen app (iOS 16.4+).">
-        <Row title="Push notifications" subtitle="New DMs, failed posts, reconnect alerts" right={<Toggle label="Push" on={push} onChange={togglePush} />} />
-        {push && <Row onClick={() => api("/push/test", { method: "POST" })} title={<span className="text-accent">Send test notification</span>} />}
-      </Group>
-      <ErrorNote error={pushErr} />
+      <Section title="How you get notified">
+        <SettingRow
+          icon={I.bell}
+          title="Push notifications"
+          subtitle="New DMs, failed posts, reconnect alerts"
+          right={<Toggle label="Push" on={push} onChange={togglePush} />}
+        />
+        {push && <SettingRow onClick={() => api("/push/test", { method: "POST" })} icon={I.send} title="Send test notification" chevron />}
+        <p className="px-4 pb-1 pt-1 text-[12px] text-muted">iPhone: works only from the Home Screen app (iOS 16.4+).</p>
+        <ErrorNote error={pushErr} />
+      </Section>
 
-      <Group>
+      <Section title="Your activity">
         <Link href="/activity" className="block">
-          <Row title="Activity log" right={<span className="text-muted">›</span>} />
+          <SettingRow icon={I.clock} title="Activity log" subtitle="Replies, DMs, posts and errors" chevron />
         </Link>
-        <Row onClick={() => logout.mutate()} title="Sign out" danger />
-      </Group>
+      </Section>
+
+      <Section title="Login">
+        <SettingRow onClick={() => logout.mutate()} icon={I.logout} title={<span className="text-danger">Log out</span>} />
+      </Section>
+
+      <p className="pb-6 pt-2 text-center text-[12px] text-muted">Instaauto · official Instagram API</p>
 
       {editing && <AccountSheet account={editing} onClose={() => setEditing(null)} onReconnect={() => connect.mutate()} />}
     </>
   );
 }
+
+/** Instagram settings section: small grey heading, flat rows, thick divider below. */
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="border-b-[6px] border-fill py-2">
+      <h2 className="px-4 pb-1 pt-2 text-[14px] font-semibold text-muted">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function SettingRow({
+  icon,
+  title,
+  subtitle,
+  right,
+  chevron,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  title: React.ReactNode;
+  subtitle?: string;
+  right?: React.ReactNode;
+  chevron?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <div
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), onClick()) : undefined}
+      className={`flex min-h-[56px] items-center gap-3.5 px-4 py-2 ${onClick ? "press cursor-pointer active:bg-fill" : ""}`}
+    >
+      <span className="flex w-10 shrink-0 justify-center">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[16px]">{title}</div>
+        {subtitle && <div className="truncate text-[13px] text-muted">{subtitle}</div>}
+      </div>
+      {right}
+      {chevron && (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-muted">
+          <path d="M9 6l6 6-6 6" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+const RoundIcon = ({ children }: { children: React.ReactNode }) => (
+  <span className="flex h-10 w-10 items-center justify-center rounded-full border border-line">{children}</span>
+);
+
+const sv = { width: 24, height: 24, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" } as const;
+const I = {
+  plus: (
+    <svg {...sv} width={20} height={20}>
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  ),
+  bell: (
+    <svg {...sv}>
+      <path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8" />
+      <path d="M10.3 20a2 2 0 0 0 3.4 0" />
+    </svg>
+  ),
+  send: (
+    <svg {...sv}>
+      <path d="M22 3 9.2 10.8M22 3l-7 18-3-8.2L3 10z" />
+    </svg>
+  ),
+  clock: (
+    <svg {...sv}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  ),
+  logout: (
+    <svg {...sv} className="text-danger">
+      <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11" />
+    </svg>
+  ),
+};
 
 function AccountSheet({ account, onClose, onReconnect }: { account: Account; onClose: () => void; onReconnect: () => void }) {
   const qc = useQueryClient();
