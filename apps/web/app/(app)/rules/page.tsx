@@ -291,11 +291,6 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
             <TemplatePicker current={replies} onInsert={(t) => setReplies(replies.trim() ? `${replies.trim()}\n${t}` : t)} />
           </div>
         )}
-        {(act === "hide" || act === "delete") && (
-          <p className="mt-3 px-1 text-[13px] text-muted">
-            {act === "hide" ? "Hidden comments are only visible to the person who wrote them." : "The comment is removed from Instagram for everyone."} No reply is sent.
-          </p>
-        )}
       </Step>
 
       {isComment && replying && (
@@ -315,12 +310,10 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
 
       {!isComment && replying && (
         <Step n={n()} title="Extras (optional)">
-          <p className="mb-1.5 px-1 text-[13px] text-muted">Buttons under your reply. When they tap one, it comes back like a message.</p>
-          <ChipInput values={buttons} onChange={setButtons} placeholder="e.g. Price, Services" max={13} maxLen={20} />
+          <ChipInput values={buttons} onChange={setButtons} placeholder="Buttons (optional), e.g. Price, Services" max={13} maxLen={20} />
           <div className="mt-3 rounded-xl border border-card-border bg-card">
             <DmMedia url={d.replyMediaUrl} onChange={(replyMediaUrl) => setD({ ...d, replyMediaUrl })} />
           </div>
-          <p className="mt-1.5 px-1 text-[13px] text-muted">Instagram allows replies only within 24 hours of their message.</p>
         </Step>
       )}
 
@@ -454,22 +447,22 @@ function DmMedia({ url, onChange }: { url: string | null; onChange: (u: string |
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<Error | null>(null);
   return (
-    <div className="px-4 py-2.5">
-      <span className="mb-1 block text-[13px] text-muted">Photo / video with the reply (optional)</span>
+    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5">
+      <span className="text-[14px] text-muted">Photo / video</span>
       {url ? (
         <div className="flex items-center gap-3">
           {/\.(mp4|mov)(\?|$)/i.test(url) ? (
-            <video src={url} className="h-16 w-16 rounded-lg object-cover" muted preload="metadata" />
+            <video src={url} className="h-10 w-10 rounded-lg object-cover" muted preload="metadata" />
           ) : (
-            <img src={url} alt="" className="h-16 w-16 rounded-lg object-cover" />
+            <img src={url} alt="" className="h-10 w-10 rounded-lg object-cover" />
           )}
-          <button className="text-[15px] text-danger" onClick={() => onChange(null)}>
+          <button className="text-[14px] text-danger" onClick={() => onChange(null)}>
             Remove
           </button>
         </div>
       ) : (
-        <label className={`inline-block cursor-pointer text-[16px] text-accent ${busy ? "opacity-40" : ""}`}>
-          {busy ? "Uploading…" : "📷 Upload photo / video"}
+        <label className={`inline-block cursor-pointer text-[14px] font-semibold text-accent ${busy ? "opacity-40" : ""}`}>
+          {busy ? "Uploading…" : "＋ Add"}
           <input
             type="file"
             className="hidden"
@@ -492,7 +485,7 @@ function DmMedia({ url, onChange }: { url: string | null; onChange: (u: string |
           />
         </label>
       )}
-      {err && <p className="mt-1 text-[14px] text-danger">{err.message}</p>}
+      {err && <span className="w-full text-[13px] text-danger">{err.message}</span>}
     </div>
   );
 }
