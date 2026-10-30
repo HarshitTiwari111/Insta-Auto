@@ -259,7 +259,6 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
         {d.matchType === "KEYWORD" && (
           <div className="mt-3">
             <ChipInput values={keywords} onChange={setKeywords} placeholder="Type a word and press Enter" />
-            <p className="mt-1.5 px-1 text-[13px] text-muted">If the {isComment ? "comment" : "message"} has any one of these words, the rule runs. Capital letters don't matter.</p>
           </div>
         )}
       </Step>
@@ -290,9 +289,6 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
               onChange={setReplies}
               placeholder={isComment ? "Thanks {username}! Check your DMs 📩" : "Hi! Here is our price list: …"}
             />
-            <p className="mt-1.5 px-1 text-[13px] text-muted">
-              {isComment ? "Write {username} to add their name. " : ""}Want variety? Write a few replies, one per line. One is picked at random.
-            </p>
             <TemplatePicker current={replies} onInsert={(t) => setReplies(replies.trim() ? `${replies.trim()}\n${t}` : t)} />
           </div>
         )}
