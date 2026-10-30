@@ -12,6 +12,8 @@ export const keys = {
   dedupe: (key: string) => `${P}:dedupe:${key}`,
   /** One private reply per comment (Meta rule) */
   privateReplyDone: (commentId: string) => `${P}:pr:done:${commentId}`,
+  /** Comment ids this account has liked (Instagram does not say whether *we* liked a comment) */
+  likedComments: (accountId: string) => `${P}:liked:${accountId}`,
 
   /** Cache */
   rules: (accountId: string, trigger: string) => `${P}:cache:rules:${accountId}:${trigger}`,

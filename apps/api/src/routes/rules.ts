@@ -18,6 +18,7 @@ const RuleBody = z
     privateReplyTemplates: z.array(text).max(20).default([]),
     hideComment: z.boolean().default(false),
     deleteComment: z.boolean().default(false),
+    likeComment: z.boolean().default(false),
     quickReplies: z.array(z.string().trim().min(1).max(20)).max(13).default([]),
     replyMediaUrl: z.string().url().startsWith("https://").nullable().default(null),
     aiReply: z.boolean().default(false),
@@ -26,11 +27,11 @@ const RuleBody = z
   })
   .refine((r) => r.matchType === "ANY" || r.keywords.length > 0, "keywords required for KEYWORD rules")
   .refine(
-    (r) => r.replyTemplates.length + r.privateReplyTemplates.length > 0 || r.hideComment || r.deleteComment || r.aiReply,
+    (r) => r.replyTemplates.length + r.privateReplyTemplates.length > 0 || r.hideComment || r.deleteComment || r.likeComment || r.aiReply,
     "rule needs at least one action",
   )
   .refine(
-    (r) => r.trigger === "COMMENT" || (r.privateReplyTemplates.length === 0 && !r.hideComment && !r.deleteComment && r.mediaIds.length === 0),
+    (r) => r.trigger === "COMMENT" || (r.privateReplyTemplates.length === 0 && !r.hideComment && !r.deleteComment && !r.likeComment && r.mediaIds.length === 0),
     "DM rules only support replyTemplates",
   )
   .refine((r) => r.trigger === "DM" || r.quickReplies.length === 0, "quick reply buttons are for DM rules only")

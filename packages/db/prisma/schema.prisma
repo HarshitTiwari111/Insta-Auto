@@ -162,6 +162,8 @@ model AutomationRule {
   hideComment           Boolean     @default(false)
   /// COMMENT only: delete the comment (spam). Takes precedence over hide/reply.
   deleteComment         Boolean     @default(false)
+  /// COMMENT only: like the comment (as the account)
+  likeComment           Boolean     @default(false)
   /// DM only: quick reply buttons sent with the reply (max 13, title max 20 chars)
   quickReplies          String[]
   /// DM only: photo / video sent after the text reply (one of our uploads or a public URL)

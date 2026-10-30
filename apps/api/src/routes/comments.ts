@@ -22,6 +22,7 @@ export interface ModComment {
 const AccountBody = z.object({ accountId: z.string().min(1) });
 const ReplyBody = AccountBody.extend({ message: z.string().trim().min(1).max(2200) });
 const HideBody = AccountBody.extend({ hide: z.boolean() });
+const LikeBody = AccountBody.extend({ like: z.boolean() });
 
 /** Comment moderation: latest comments on the latest posts, with hide / delete / reply. */
 export default async function commentRoutes(app: FastifyInstance) {
@@ -59,6 +60,7 @@ export default async function commentRoutes(app: FastifyInstance) {
     const ig = await igClientFor(req.params.id);
     if (!ig) return reply.code(404).send({ error: "not_found" });
     const { data } = await ig.listCommentsWithReplies(req.params.mediaId, 100);
+    const liked = new Set(await redis().smembers(keys.likedComments(req.params.id)));
     const shape = (c: IgComment) => ({
       id: c.id,
       text: c.text ?? "",
@@ -66,6 +68,7 @@ export default async function commentRoutes(app: FastifyInstance) {
       timestamp: c.timestamp ?? null,
       hidden: Boolean(c.hidden),
       likes: c.like_count ?? 0,
+      liked: liked.has(c.id),
     });
     const byTime = (a: { timestamp: string | null }, b: { timestamp: string | null }) => (a.timestamp ?? "").localeCompare(b.timestamp ?? "");
     return data
@@ -81,6 +84,18 @@ export default async function commentRoutes(app: FastifyInstance) {
     await ig.setCommentHidden(req.params.commentId, body.data.hide);
     await invalidate(redis(), commentsKey(body.data.accountId));
     await log(body.data.accountId, body.data.hide ? "comment.hide" : "comment.unhide", { commentId: req.params.commentId, by: req.session!.email });
+    return { ok: true };
+  });
+
+  app.post<{ Params: { commentId: string } }>("/comments/:commentId/like", async (req, reply) => {
+    const body = LikeBody.safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: "invalid_body" });
+    const ig = await igClientFor(body.data.accountId);
+    if (!ig) return reply.code(404).send({ error: "not_found" });
+    await ig.likeComment(req.params.commentId, body.data.like);
+    const set = keys.likedComments(body.data.accountId);
+    await (body.data.like ? redis().sadd(set, req.params.commentId) : redis().srem(set, req.params.commentId));
+    await log(body.data.accountId, body.data.like ? "comment.like" : "comment.unlike", { commentId: req.params.commentId, by: req.session!.email });
     return { ok: true };
   });
 

@@ -51,6 +51,7 @@ const RuleExport = z.object({
   privateReplyTemplates: z.array(z.string()).max(20),
   hideComment: z.boolean(),
   deleteComment: z.boolean().default(false),
+  likeComment: z.boolean().default(false),
   aiReply: z.boolean().default(false),
   aiInstructions: z.string().nullable().default(null),
   quickReplies: z.array(z.string()).max(13).default([]),

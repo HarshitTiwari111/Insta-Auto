@@ -229,6 +229,14 @@ export class IgClient {
   }
 
   /**
+   * Like / unlike a comment as this account (instagram_manage_engagement, Meta, Apr 2026).
+   * Meta locks the account for 1 hour after more than 50 like calls in 5 seconds.
+   */
+  likeComment(commentId: string, like = true) {
+    return this.request<{ success: boolean }>(like ? "POST" : "DELETE", `${this.igUserId}/likes`, { comment_id: commentId });
+  }
+
+  /**
    * Remove a published post / reel / story / whole carousel from Instagram.
    * Facebook Login only, needs the instagram_manage_contents permission (Meta, Dec 2025).
    */

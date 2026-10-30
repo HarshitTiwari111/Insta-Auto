@@ -98,6 +98,18 @@ async function onComment(acc: IgAccount, ev: Extract<NormalizedEvent, { kind: "c
     return;
   }
 
+  // Like before replying, like a person would. Not on comments we hide.
+  if (rule.likeComment && !rule.hideComment) {
+    const done = await once(`like:${ev.commentId}`, async () => {
+      if (!(await takeDailyAction(acc))) return false;
+      await ig.likeComment(ev.commentId);
+      await redis().sadd(keys.likedComments(acc.id), ev.commentId);
+      await log(acc.id, "comment.like", base);
+      return true;
+    });
+    if (done === false) return void (await limitHit(acc));
+  }
+
   // Each action runs at most once per comment, so a BullMQ retry never double-posts.
   if (rule.hideComment) {
     const done = await once(`hide:${ev.commentId}`, async () => {

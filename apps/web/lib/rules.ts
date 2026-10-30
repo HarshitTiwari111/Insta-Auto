@@ -8,6 +8,7 @@ export function describeRule(r: Rule): string {
   const acts = [
     r.deleteComment && "delete it",
     r.hideComment && "hide it",
+    r.likeComment && "like",
     r.aiReply && "AI reply",
     !r.aiReply && !r.hideComment && !r.deleteComment && r.replyTemplates.length && "reply",
     r.privateReplyTemplates.length && "private DM",

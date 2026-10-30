@@ -25,6 +25,8 @@ interface PostComment {
   timestamp: string | null;
   hidden: boolean;
   likes: number;
+  /** Liked by our account (from the app) */
+  liked?: boolean;
   /** Replies under this comment (our auto-replies show up here) */
   replies?: PostComment[];
 }
@@ -62,6 +64,10 @@ export function PostViewer({
   const act = useMutation({
     mutationFn: ({ id, action, hide }: { id: string; action: "hide" | "delete"; hide?: boolean }) =>
       api(`/comments/${id}/${action}`, { method: "POST", json: { accountId, hide } }),
+    onSuccess: refresh,
+  });
+  const like = useMutation({
+    mutationFn: ({ id, on }: { id: string; on: boolean }) => api(`/comments/${id}/like`, { method: "POST", json: { accountId, like: on } }),
     onSuccess: refresh,
   });
   const reply = useMutation({
@@ -122,6 +128,19 @@ export function PostViewer({
             </form>
           )}
         </div>
+        {!mine && (
+          <button
+            aria-label={c.liked ? "Unlike" : "Like"}
+            disabled={like.isPending}
+            onClick={() => like.mutate({ id: c.id, on: !c.liked })}
+            className="press flex shrink-0 flex-col items-center self-start pt-1"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill={c.liked ? "#ff3040" : "none"} stroke={c.liked ? "#ff3040" : "currentColor"} strokeWidth="2.2" className={c.liked ? "" : "text-muted"}>
+              <path d="M12 20.5s-7.5-4.6-9.2-9.3C1.7 8 3.6 4.5 7.2 4.5c2 0 3.6 1.1 4.8 2.9 1.2-1.8 2.8-2.9 4.8-2.9 3.6 0 5.5 3.5 4.4 6.7-1.7 4.7-9.2 9.3-9.2 9.3z" />
+            </svg>
+            {c.likes > 0 && <span className="mt-0.5 text-[11px] text-muted">{c.likes}</span>}
+          </button>
+        )}
       </div>
     );
   }

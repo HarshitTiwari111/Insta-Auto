@@ -64,6 +64,8 @@ export interface Rule {
   quickReplies: string[];
   replyMediaUrl: string | null;
   aiReply: boolean;
+  /** COMMENT only: like the comment */
+  likeComment?: boolean;
   aiInstructions: string | null;
   priority: number;
 }

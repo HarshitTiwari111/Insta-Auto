@@ -2,6 +2,8 @@ const LABELS: Record<string, string> = {
   "comment.reply": "Replied to comment",
   "comment.hide": "Hid comment",
   "comment.delete": "Deleted comment",
+  "comment.like": "Liked comment",
+  "comment.unlike": "Unliked comment",
   "comment.unhide": "Unhid comment",
   "comment.manual_reply": "Replied to comment",
   "comment.ai_spam": "AI hid spam comment",

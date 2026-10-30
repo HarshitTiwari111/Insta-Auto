@@ -26,6 +26,7 @@ const blank = (trigger: Rule["trigger"]): Draft => ({
   quickReplies: [],
   replyMediaUrl: null,
   aiReply: false,
+  likeComment: false,
   aiInstructions: null,
   priority: 100,
 });
@@ -147,6 +148,7 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
   const [replies, setReplies] = useState(toBox(initial.replyTemplates));
   const [privateReplies, setPrivateReplies] = useState(toBox(initial.privateReplyTemplates));
   const [sendDm, setSendDm] = useState(initial.privateReplyTemplates.length > 0);
+  const [likeIt, setLikeIt] = useState(Boolean(initial.likeComment));
   const [buttons, setButtons] = useState<string[]>(initial.quickReplies ?? []);
   const [action, setAction] = useState<Action>(initial.deleteComment ? "delete" : initial.hideComment ? "hide" : initial.aiReply ? "ai" : "reply");
   const isComment = d.trigger === "COMMENT";
@@ -180,6 +182,7 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
         aiInstructions: act === "ai" ? d.aiInstructions?.trim() || null : d.aiInstructions,
         hideComment: isComment && act === "hide",
         deleteComment: isComment && act === "delete",
+        likeComment: isComment && replying && likeIt,
         replyTemplates: replying ? messages(replies) : [],
         privateReplyTemplates: isComment && replying && sendDm ? messages(privateReplies) : [],
         quickReplies: isComment ? [] : buttons,
@@ -301,6 +304,13 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
           </div>
         )}
       </Step>
+
+      {isComment && replying && (
+        <div className="mx-4 -mt-3 mb-6 flex items-center justify-between rounded-xl border border-card-border bg-card px-4 py-3">
+          <span className="text-[15px]">❤️ Also like their comment</span>
+          <Toggle label="Like the comment" on={likeIt} onChange={setLikeIt} />
+        </div>
+      )}
 
       {isComment && replying && (
         <Step n={n()} title="Also send them a private DM?">
