@@ -98,6 +98,11 @@ select {
   border-radius: 9999px;
 }
 
+/* Instagram DM: own messages in a purple-to-blue gradient */
+.ig-bubble {
+  background-image: linear-gradient(135deg, #a033ff 0%, #6a4bff 50%, #3797f0 100%);
+}
+
 /* Scrolls normally, but without a visible scrollbar (popups, like Instagram's) */
 .no-scrollbar {
   scrollbar-width: none;
