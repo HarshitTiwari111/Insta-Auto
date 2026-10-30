@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 
 /** Instagram-style top bar: page title left, action right, hairline below */
-export function Header({ title, right, brand }: { title: string; right?: React.ReactNode; brand?: boolean }) {
+export function Header({ title, right, brand }: { title: React.ReactNode; right?: React.ReactNode; brand?: boolean }) {
   return (
     <header className="pt-safe sticky top-0 z-20 mb-4 border-b border-line bg-bar backdrop-blur-xl print:static">
       <div className="flex min-h-[56px] items-center justify-between px-4">

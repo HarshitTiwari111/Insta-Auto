@@ -139,7 +139,7 @@ export default function PostsPage() {
   return (
     <>
       <Header
-        title={selected.username}
+        title={<AccountSwitcher accounts={accounts} selected={selected} onSelect={select} inHeader />}
         right={
           <button aria-label="New post" className="press block p-1" onClick={() => setEditing("new")}>
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
@@ -149,8 +149,6 @@ export default function PostsPage() {
           </button>
         }
       />
-      <AccountSwitcher accounts={accounts} selected={selected} onSelect={select} />
-
       {/* Instagram-style profile block */}
       <div className="mx-4 mb-4">
         <div className="flex items-center gap-6">
