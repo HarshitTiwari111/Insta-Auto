@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAccounts } from "@/components/useAccounts";
 
 const tabs = [
   { href: "/", label: "Home", icon: HomeIcon },
@@ -11,17 +10,6 @@ const tabs = [
   { href: "/inbox", label: "Inbox", icon: ChatIcon },
   { href: "/settings", label: "Settings", icon: GearIcon },
 ];
-
-/** Current account's photo for the last tab (Instagram's profile tab); gear when nothing is connected. */
-function ProfileTab({ active }: { active: boolean }) {
-  const { selected } = useAccounts();
-  if (!selected) return <GearIcon />;
-  return (
-    <span className={`flex h-[26px] w-[26px] items-center justify-center overflow-hidden rounded-full bg-fill text-[12px] font-semibold uppercase ${active ? "ring-2 ring-text ring-offset-1 ring-offset-bg" : ""}`}>
-      {selected.profilePictureUrl ? <img src={selected.profilePictureUrl} alt="" className="h-full w-full object-cover" /> : selected.username.slice(0, 1)}
-    </span>
-  );
-}
 
 export function TabBar() {
   const path = usePathname();
@@ -36,7 +24,7 @@ export function TabBar() {
                 href={href}
                 className={`flex flex-col items-center gap-0.5 pb-1 pt-2 text-[10px] font-medium ${active ? "text-text" : "text-muted"}`}
               >
-                {href === "/settings" ? <ProfileTab active={active} /> : <Icon />}
+                <Icon />
                 {label}
               </Link>
             </li>
