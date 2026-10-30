@@ -152,7 +152,6 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
   const [privateReplies, setPrivateReplies] = useState(initial.privateReplyTemplates.join("\n"));
   const [sendDm, setSendDm] = useState(initial.privateReplyTemplates.length > 0);
   const [buttons, setButtons] = useState<string[]>(initial.quickReplies ?? []);
-  const [more, setMore] = useState(false);
   const [action, setAction] = useState<Action>(initial.deleteComment ? "delete" : initial.hideComment ? "hide" : initial.aiReply ? "ai" : "reply");
   const isComment = d.trigger === "COMMENT";
   const act: Action = !isComment && (action === "hide" || action === "delete") ? "reply" : action;
@@ -325,7 +324,7 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
         </Step>
       )}
 
-      <Step n={n()} title="Name this rule (optional)">
+      <Step n={n()} title="Name & order (optional)">
         <Box
           single
           label="Rule name"
@@ -333,24 +332,16 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
           onChange={(name) => setD({ ...d, name })}
           placeholder={d.matchType === "ANY" ? (isComment ? "Every comment" : "Every DM") : keywords.length ? `Reply to: ${keywords.join(", ")}` : "e.g. Price questions"}
         />
+        <div className="mt-2">
+          <Box
+            single
+            label="Order (1 = checked first)"
+            value={String(d.priority)}
+            onChange={(v) => setD({ ...d, priority: Number(v.replace(/\D/g, "")) || 0 })}
+            placeholder="100"
+          />
+        </div>
       </Step>
-
-      <div className="mx-4 mb-4">
-        <button className="text-[14px] font-semibold text-muted" onClick={() => setMore((m) => !m)}>
-          {more ? "▾" : "▸"} More options
-        </button>
-        {more && (
-          <div className="mt-2">
-            <Box
-              single
-              label="Order (1 = checked first)"
-              value={String(d.priority)}
-              onChange={(v) => setD({ ...d, priority: Number(v.replace(/\D/g, "")) || 0 })}
-              placeholder="100"
-            />
-          </div>
-        )}
-      </div>
 
       <ErrorNote error={save.error ?? remove.error} />
       <div className="mx-4 space-y-3">
