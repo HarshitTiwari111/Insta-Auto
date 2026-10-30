@@ -31,6 +31,8 @@ interface Analytics {
     avgEngagementRate: number;
   };
   history: { day: string; followers: number; mediaCount: number }[];
+  /** What the app did in this period */
+  automation?: { postsPublished: number; commentReplies: number; commentLikes: number; dmReplies: number; hiddenOrDeleted: number };
   best: PostStat[];
   bestTimes: { weekday: number; hour: number; posts: number; avgInteractions: number; avgEngagementRate: number }[];
   timezone: string;
@@ -109,6 +111,16 @@ export default function AnalyticsPage() {
               <Sparkline values={a.history.map((h) => h.followers)} />
             </div>
           </Group>
+
+          {a.automation && (
+            <Group title="Done by the app" footer={`Last ${a.days} days. Every like is also listed in Activity (♡ on Home).`}>
+              <Row title="❤️ Comments liked" right={<span className="text-muted">{a.automation.commentLikes}</span>} />
+              <Row title="💬 Comment replies" right={<span className="text-muted">{a.automation.commentReplies}</span>} />
+              <Row title="📩 DM replies" right={<span className="text-muted">{a.automation.dmReplies}</span>} />
+              <Row title="🙈 Spam hidden / deleted" right={<span className="text-muted">{a.automation.hiddenOrDeleted}</span>} />
+              <Row title="📤 Posts published" right={<span className="text-muted">{a.automation.postsPublished}</span>} />
+            </Group>
+          )}
 
           <Group title="Direct messages" footer={`Last ${a.days} days, from DMs the app has seen. Response time = median wait until our reply.`}>
             <Row title="Received" right={<span className="text-muted">{a.dm.received} from {a.dm.people} people</span>} />

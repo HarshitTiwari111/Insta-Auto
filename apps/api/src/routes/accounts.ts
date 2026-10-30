@@ -4,6 +4,7 @@ import {
   bestPosts,
   bestTimes,
   cached,
+  countActivity,
   dmStats,
   hashtagPerformance,
   invalidate,
@@ -143,6 +144,11 @@ export default async function accountRoutes(app: FastifyInstance) {
       where: { accountId: req.params.id, createdAt: { gte: new Date(Date.now() - days * 24 * 3600 * 1000) } },
       select: { igsid: true, direction: true, createdAt: true },
     });
+    // What the automation did in this period (likes, replies, DMs, spam), from the activity log
+    const activity = await prisma.activityLog.findMany({
+      where: { accountId: req.params.id, createdAt: { gte: new Date(Date.now() - days * 24 * 3600 * 1000) } },
+      select: { kind: true },
+    });
     return {
       days,
       summary: summarize(posts, followers, history),
@@ -151,6 +157,7 @@ export default async function accountRoutes(app: FastifyInstance) {
       bestTimes: bestTimes(posts, timezone),
       hashtags: hashtagPerformance(media, followers),
       dm: dmStats(messages),
+      automation: countActivity(activity.map((a) => a.kind)),
       timezone,
       posts,
     };

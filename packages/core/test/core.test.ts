@@ -289,9 +289,9 @@ test("blocklist: case and @ insensitive", () => {
 });
 
 test("weekly report: counts and text", () => {
-  const c = countActivity(["post.published", "post.published", "post.failed", "comment.reply", "comment.manual_reply", "dm.flow", "comment.private_reply", "comment.ai_spam", "account.updated"]);
-  assert.deepEqual(c, { postsPublished: 2, postsFailed: 1, commentReplies: 2, dmReplies: 2, hiddenOrDeleted: 1 });
+  const c = countActivity(["post.published", "post.published", "post.failed", "comment.reply", "comment.manual_reply", "dm.flow", "comment.private_reply", "comment.ai_spam", "comment.like", "account.updated"]);
+  assert.deepEqual(c, { postsPublished: 2, postsFailed: 1, commentReplies: 2, commentLikes: 1, dmReplies: 2, hiddenOrDeleted: 1 });
   const t = reportText("weekly", { ...c, dmsReceived: 3, followersStart: 100, followersEnd: 112 });
-  assert.equal(t, "Last 7 days: 112 followers (+12) · 2 posts (1 failed) · 2 comment replies · 2 DM replies · 3 DMs received · 1 spam hidden/deleted");
+  assert.equal(t, "Last 7 days: 112 followers (+12) · 2 posts (1 failed) · 2 comment replies · 1 comments liked · 2 DM replies · 3 DMs received · 1 spam hidden/deleted");
   assert.ok(reportText("monthly", { ...c, dmsReceived: 0, followersStart: null, followersEnd: null }).startsWith("Last month: 2 posts"));
 });
