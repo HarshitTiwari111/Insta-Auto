@@ -5,6 +5,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, timeAgo, type DmMessage } from "@/lib/api";
 import { AccountSwitcher, useAccounts } from "@/components/useAccounts";
 import { Empty, ErrorNote, Group, Header, Row, Sheet } from "@/components/ui";
+import { Avatar } from "@/components/Avatar";
+
+/** Best name for a conversation: any message in it that knows the @username, else the short ID. */
+const nameOf = (list: DmMessage[], igsid: string) => {
+  const u = list.find((m) => m.username)?.username;
+  return u ? `@${u}` : `Instagram user …${igsid.slice(-6)}`;
+};
 
 /** Meta: a reply is allowed only within 24h of the person's last message. */
 const WINDOW_MS = 24 * 3600 * 1000;
@@ -59,16 +66,19 @@ export default function InboxPage() {
       <Header title="Inbox" />
       <AccountSwitcher accounts={accounts} selected={selected} onSelect={select} />
       <ErrorNote error={msgs.error} />
-      {msgs.data?.length === 0 && <Empty icon="📭" text="No DMs yet. Messages received through the webhook appear here." />}
+      {msgs.data?.length === 0 && (
+        <Empty icon="📭" text="No DMs yet. Private DMs sent to commenters by your rules, and messages that reach the app, show up here." />
+      )}
       {threads.length > 0 && (
-        <Group footer="Tap a conversation to read or reply. Replies are allowed within 24h of their last message.">
+        <Group footer="Tap a conversation to read it. You can reply here within 24h of their last message to you (Instagram's rule).">
           {threads.map(([igsid, list]) => {
             const last = list[0]!;
             return (
               <Row
                 key={igsid}
                 onClick={() => setOpen(igsid)}
-                title={`User …${igsid.slice(-6)}`}
+                left={<Avatar name={(list.find((m) => m.username)?.username ?? "?")} size={40} />}
+                title={nameOf(list, igsid)}
                 subtitle={`${last.direction === "OUT" ? "You: " : ""}${last.text ?? "(attachment)"}`}
                 right={<span className="text-[13px] text-muted">{timeAgo(last.createdAt)}</span>}
               />
@@ -83,7 +93,7 @@ export default function InboxPage() {
           setOpen(null);
           send.reset();
         }}
-        title="Conversation"
+        title={open ? nameOf(thread, open) : "Conversation"}
       >
         <div className="flex flex-col gap-2 px-4">
           {[...thread].reverse().map((m) => (

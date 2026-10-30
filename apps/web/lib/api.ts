@@ -93,6 +93,7 @@ export interface Activity {
 export interface DmMessage {
   id: string;
   igsid: string;
+  username: string | null;
   direction: "IN" | "OUT";
   text: string | null;
   createdAt: string;

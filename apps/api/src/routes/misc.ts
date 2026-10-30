@@ -81,7 +81,7 @@ export default async function miscRoutes(app: FastifyInstance) {
       // The echo webhook carries the same mid, so upsert keeps one row
       const msg = await prisma.dmMessage.upsert({
         where: { mid: r.message_id },
-        create: { accountId: req.params.id, igsid, direction: "OUT", text, mid: r.message_id },
+        create: { accountId: req.params.id, igsid, username: lastIn.username, direction: "OUT", text, mid: r.message_id },
         update: {},
       });
       await log(req.params.id, "dm.manual", { to: igsid, by: req.session!.email, reply: text });

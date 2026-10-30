@@ -232,6 +232,8 @@ model DmMessage {
   account   IgAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
   /// Instagram-scoped ID of the other person
   igsid     String
+  /// Their @username when known (DMs only carry the IGSID; filled from the comment or a profile lookup)
+  username  String?
   direction Direction
   text      String?
   /// Meta message id; unique so webhook retries / echoes never duplicate

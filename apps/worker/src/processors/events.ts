@@ -138,7 +138,7 @@ async function onComment(acc: IgAccount, ev: Extract<NormalizedEvent, { kind: "c
     try {
       const r = await ig.privateReply(ev.commentId, text);
       await prisma.dmMessage.create({
-        data: { accountId: acc.id, igsid: r.recipient_id, direction: "OUT", text, mid: r.message_id, ruleId: rule.id },
+        data: { accountId: acc.id, igsid: r.recipient_id, username: ev.fromUsername ?? null, direction: "OUT", text, mid: r.message_id, ruleId: rule.id },
       });
       await log(acc.id, "comment.private_reply", { ...base, dm: text });
     } catch (err) {
@@ -159,9 +159,10 @@ async function onMessage(acc: IgAccount, ev: Extract<NormalizedEvent, { kind: "m
     return;
   }
 
+  const username = await senderUsername(acc, ev.senderId);
   await prisma.dmMessage.upsert({
     where: { mid: ev.mid },
-    create: { accountId: acc.id, igsid: ev.senderId, direction: "IN", text: ev.text, mid: ev.mid, createdAt: new Date(ev.timestamp) },
+    create: { accountId: acc.id, igsid: ev.senderId, username, direction: "IN", text: ev.text, mid: ev.mid, createdAt: new Date(ev.timestamp) },
     update: {},
   });
   // User messaged us -> standard 24h messaging window is open
@@ -225,15 +226,20 @@ async function onMessage(acc: IgAccount, ev: Extract<NormalizedEvent, { kind: "m
  */
 async function dmSenderBlocked(acc: IgAccount, igsid: string): Promise<boolean> {
   if (!acc.blocklist.length) return false;
+  return isBlockedUser(acc.blocklist, await senderUsername(acc, igsid));
+}
+
+/** @username of someone who messaged us (User Profile API, cached 7 days). null when Meta won't say. */
+async function senderUsername(acc: IgAccount, igsid: string): Promise<string | null> {
   try {
-    const username = await cached<string>(redis(), `ia:cache:igsid:${acc.id}:${igsid}`, 7 * 24 * 3600, async () => {
+    const u = await cached<string>(redis(), `ia:cache:igsid:${acc.id}:${igsid}`, 7 * 24 * 3600, async () => {
       const p = await igFor(acc).userProfile(igsid);
       return p.username ?? "";
     });
-    return isBlockedUser(acc.blocklist, username);
+    return u || null;
   } catch (err) {
     logger.warn({ err: (err as Error).message, igsid }, "username lookup failed");
-    return false;
+    return null;
   }
 }
 
