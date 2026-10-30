@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type Activity } from "@/lib/api";
-import { Badge, Button, ErrorNote, Group, Header, Row } from "@/components/ui";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api, type Activity, type Rule } from "@/lib/api";
+import { describeRule } from "@/lib/rules";
+import { Badge, Button, ErrorNote, Group, Header, Row, Toggle } from "@/components/ui";
 import { InstallHint } from "@/components/InstallHint";
 import { Avatar } from "@/components/Avatar";
 
@@ -18,12 +20,33 @@ interface Dashboard {
 
 export default function Home() {
   const qc = useQueryClient();
+  const router = useRouter();
   const dash = useQuery({ queryKey: ["dashboard"], queryFn: () => api<Dashboard>("/dashboard"), refetchInterval: 30_000 });
   const stopAll = useMutation({
     mutationFn: () => api("/accounts/stop-all", { method: "POST" }),
     onSuccess: () => qc.invalidateQueries(),
   });
   const d = dash.data;
+  // Every account's rules (same cache as the Rules page)
+  const ruleLists = useQueries({
+    queries: (d?.accounts ?? []).map((a) => ({ queryKey: ["rules", a.id], queryFn: () => api<Rule[]>(`/accounts/${a.id}/rules`) })),
+  });
+  const allRules = ruleLists.flatMap((q, i) => (q.data ?? []).map((r) => ({ r, username: d!.accounts[i].username })));
+  const toggle = useMutation({
+    mutationFn: (id: string) => api(`/rules/${id}/toggle`, { method: "PATCH" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["rules"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+  const openRules = (accountId: string) => {
+    try {
+      localStorage.setItem("ia:selectedAccount", accountId);
+    } catch {
+      /* ignore */
+    }
+    router.push("/rules");
+  };
   const anyRunning = d?.accounts.some((a) => !a.paused);
   // Red dot on the heart only for activity newer than the last visit to /activity (per device)
   const [seenAt, setSeenAt] = useState(0);
@@ -63,6 +86,30 @@ export default function Home() {
         <Shortcut href="/comments" icon="💬" title="Comments" subtitle="Reply & hide" />
         <Shortcut href="/analytics" icon="📊" title="Analytics" subtitle="Growth & posts" />
       </div>
+
+      <section className="mx-4 mb-6">
+        <div className="mb-2 flex items-center justify-between px-1">
+          <h2 className="text-[15px] font-semibold">Your rules</h2>
+          <Link href="/rules" className="text-[14px] font-semibold text-accent">
+            See all ›
+          </Link>
+        </div>
+        <div className="overflow-hidden rounded-xl border border-card-border bg-card [&>*+*]:border-t [&>*+*]:border-line">
+          {d && allRules.length === 0 && !ruleLists.some((q) => q.isLoading) && (
+            <Row title="No rules yet" subtitle="Tap to make your first auto reply" onClick={() => router.push("/rules")} right={<span className="text-accent">＋</span>} />
+          )}
+          {allRules.slice(0, 6).map(({ r, username }) => (
+            <Row
+              key={r.id}
+              onClick={() => openRules(r.accountId)}
+              left={<span className="text-[20px]">{r.trigger === "DM" ? "📩" : "💬"}</span>}
+              title={r.name}
+              subtitle={<span className="line-clamp-2 whitespace-normal">{`@${username} · ${describeRule(r)}`}</span>}
+              right={<Toggle label={`Enable ${r.name}`} on={r.enabled} onChange={() => toggle.mutate(r.id)} />}
+            />
+          ))}
+        </div>
+      </section>
 
       <Group title="Accounts">
         {d && d.accounts.length === 0 && <Row title="Connect an Instagram account" subtitle="Settings → Connect" />}

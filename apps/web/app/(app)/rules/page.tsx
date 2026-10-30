@@ -5,6 +5,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { uploadMedia } from "@/lib/upload";
 import { api, type Rule } from "@/lib/api";
+import { describeRule as describe } from "@/lib/rules";
 import { AccountSwitcher, useAccounts } from "@/components/useAccounts";
 import { Button, Empty, ErrorNote, Group, Header, Row, Segmented, Sheet, Toggle } from "@/components/ui";
 import { MediaPicker, useAllMedia } from "@/components/MediaPicker";
@@ -135,21 +136,6 @@ export default function RulesPage() {
       )}
     </>
   );
-}
-
-function describe(r: Rule): string {
-  const what = r.trigger === "DM" ? "DMs" : "Comments";
-  const where = r.trigger === "COMMENT" ? (r.mediaIds?.length ? ` on ${r.mediaIds.length} chosen post${r.mediaIds.length === 1 ? "" : "s"}` : "") : "";
-  const when = r.matchType === "ANY" ? (r.trigger === "DM" ? "All DMs" : "All comments") : `${what} with ${r.keywords.map((k) => `“${k}”`).join(", ")}`;
-  const acts = [
-    r.deleteComment && "delete it",
-    r.hideComment && "hide it",
-    r.aiReply && "AI reply",
-    !r.aiReply && !r.hideComment && !r.deleteComment && r.replyTemplates.length && "reply",
-    r.privateReplyTemplates.length && "private DM",
-    r.quickReplies?.length && "buttons",
-  ].filter(Boolean);
-  return `${when}${where} → ${acts.join(" + ")}`;
 }
 
 type Action = "reply" | "ai" | "hide" | "delete";
