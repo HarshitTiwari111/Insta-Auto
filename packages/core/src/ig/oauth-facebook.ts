@@ -21,12 +21,13 @@ export const FB_SCOPES = [
   "business_management",
 ] as const;
 
-export function buildFacebookAuthorizeUrl(opts: { appId: string; redirectUri: string; state: string; version: string }): string {
+export function buildFacebookAuthorizeUrl(opts: { appId: string; redirectUri: string; state: string; version: string; extraScopes?: string }): string {
+  const extra = (opts.extraScopes ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   const u = new URL(`https://www.facebook.com/${opts.version}/dialog/oauth`);
   u.searchParams.set("client_id", opts.appId);
   u.searchParams.set("redirect_uri", opts.redirectUri);
   u.searchParams.set("response_type", "code");
-  u.searchParams.set("scope", FB_SCOPES.join(","));
+  u.searchParams.set("scope", [...new Set([...FB_SCOPES, ...extra])].join(","));
   u.searchParams.set("state", opts.state);
   return u.toString();
 }

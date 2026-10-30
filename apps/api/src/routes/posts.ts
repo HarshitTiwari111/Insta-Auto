@@ -12,6 +12,8 @@ const Fields = z.object({
   caption: z.string().max(2200).optional(),
   firstComment: z.string().max(2200).optional(),
   scheduledAt: z.coerce.date(),
+  /** Auto-delete from Instagram at this time (after publishing) */
+  deleteAt: z.coerce.date().nullable().optional(),
   /** true = save as DRAFT (not queued, relaxed checks) */
   draft: z.boolean().optional(),
 });
@@ -20,7 +22,8 @@ const Fields = z.object({
 const Schedulable = Fields.refine(
   (p) => (p.type === "CAROUSEL" ? p.mediaUrls.length >= 2 : p.mediaUrls.length === 1),
   { message: "CAROUSEL needs 2-20 URLs; other types need exactly 1" },
-).refine((p) => p.scheduledAt.getTime() > Date.now() - 60_000, { message: "scheduledAt is in the past" });
+).refine((p) => p.scheduledAt.getTime() > Date.now() - 60_000, { message: "scheduledAt is in the past" })
+  .refine((p) => !p.deleteAt || p.deleteAt.getTime() > p.scheduledAt.getTime(), { message: "Auto-delete time must be after the post time" });
 
 function parse(body: unknown) {
   const raw = Fields.safeParse(body);
@@ -71,7 +74,7 @@ export default async function postRoutes(app: FastifyInstance) {
     await (await q().publish.getJob(post.id))?.remove().catch(() => undefined);
     const updated = await prisma.scheduledPost.update({
       where: { id: post.id },
-      data: { ...data, caption: data.caption ?? null, firstComment: data.firstComment ?? null, status: draft ? "DRAFT" : "PENDING", error: null },
+      data: { ...data, caption: data.caption ?? null, firstComment: data.firstComment ?? null, deleteAt: data.deleteAt ?? null, status: draft ? "DRAFT" : "PENDING", error: null },
     });
     if (!draft) {
       await schedulePublish(q(), updated.id, updated.scheduledAt);
@@ -97,6 +100,24 @@ export default async function postRoutes(app: FastifyInstance) {
     if (post.status !== "PENDING") return reply.code(409).send({ error: `cannot cancel ${post.status}` });
     await (await q().publish.getJob(post.id))?.remove().catch(() => undefined);
     return prisma.scheduledPost.update({ where: { id: post.id }, data: { status: "CANCELLED" } });
+  });
+
+  /** Set or clear auto-delete on a scheduled or already published post. */
+  app.patch<{ Params: { id: string } }>("/posts/:id/auto-delete", async (req, reply) => {
+    const body = z.object({ deleteAt: z.coerce.date().nullable() }).safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: "invalid_body" });
+    const post = await prisma.scheduledPost.findUnique({ where: { id: req.params.id } });
+    if (!post) return reply.code(404).send({ error: "not_found" });
+    if (post.deletedAt || !["DRAFT", "PENDING", "PUBLISHING", "PUBLISHED"].includes(post.status)) {
+      return reply.code(409).send({ error: `cannot auto-delete a ${post.deletedAt ? "deleted" : post.status.toLowerCase()} post` });
+    }
+    const { deleteAt } = body.data;
+    if (deleteAt && deleteAt.getTime() <= Math.max(Date.now(), post.scheduledAt.getTime())) {
+      return reply.code(400).send({ error: "Auto-delete time must be in the future and after the post time" });
+    }
+    const updated = await prisma.scheduledPost.update({ where: { id: post.id }, data: { deleteAt } });
+    await log(post.accountId, deleteAt ? "post.auto_delete_set" : "post.auto_delete_cleared", { postId: post.id, at: deleteAt, by: req.session!.email });
+    return updated;
   });
 
   app.post<{ Params: { id: string } }>("/posts/:id/retry", async (req, reply) => {

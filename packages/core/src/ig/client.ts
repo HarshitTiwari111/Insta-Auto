@@ -228,6 +228,14 @@ export class IgClient {
     return this.request<{ success: boolean }>("DELETE", commentId);
   }
 
+  /**
+   * Remove a published post / reel / story / whole carousel from Instagram.
+   * Facebook Login only, needs the instagram_manage_contents permission (Meta, Dec 2025).
+   */
+  deleteMedia(mediaId: string) {
+    return this.request<{ success: boolean }>("DELETE", mediaId);
+  }
+
   // ---------- Messaging ----------
 
   /**

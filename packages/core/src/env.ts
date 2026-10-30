@@ -12,6 +12,11 @@ const schema = z.object({
    * facebook  = Facebook Login (Facebook app ID/secret, account must be linked to a Facebook Page).
    */
   IG_LOGIN_MODE: z.enum(["instagram", "facebook"]).default("instagram"),
+  /**
+   * Extra Facebook Login permissions, comma separated. Add one only after adding it to the Meta app,
+   * or the login dialog fails. instagram_manage_contents = auto-delete posts.
+   */
+  IG_EXTRA_SCOPES: z.string().default(""),
   IG_APP_ID: z.string().min(1),
   IG_APP_SECRET: z.string().min(1),
   IG_API_VERSION: z.string().regex(/^v\d+\.\d+$/).default("v26.0"),

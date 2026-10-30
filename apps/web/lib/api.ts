@@ -79,6 +79,9 @@ export interface Post {
   status: "DRAFT" | "PENDING" | "PUBLISHING" | "PUBLISHED" | "FAILED" | "CANCELLED";
   igMediaId: string | null;
   error: string | null;
+  /** Auto-delete time (removed from Instagram then) */
+  deleteAt: string | null;
+  deletedAt: string | null;
 }
 
 export interface Activity {

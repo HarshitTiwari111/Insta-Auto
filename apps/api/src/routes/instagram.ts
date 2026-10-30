@@ -33,7 +33,7 @@ export default async function instagramRoutes(app: FastifyInstance) {
     const e = env();
     const url =
       e.IG_LOGIN_MODE === "facebook"
-        ? buildFacebookAuthorizeUrl({ appId: e.IG_APP_ID, redirectUri: redirectUri(), state, version: e.IG_API_VERSION })
+        ? buildFacebookAuthorizeUrl({ appId: e.IG_APP_ID, redirectUri: redirectUri(), state, version: e.IG_API_VERSION, extraScopes: e.IG_EXTRA_SCOPES })
         : buildAuthorizeUrl({ appId: e.IG_APP_ID, redirectUri: redirectUri(), state });
     return { url };
   });

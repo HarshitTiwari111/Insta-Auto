@@ -111,8 +111,9 @@ async function sendReport(period: "weekly" | "monthly") {
   }
 }
 
-/** Safety net: re-queue PENDING posts whose delayed job is missing (e.g. Redis was flushed). */
+/** Safety net: re-queue PENDING posts whose delayed job is missing (e.g. Redis was flushed). Also runs auto-delete. */
 async function sweepPosts() {
+  await autoDeletePosts();
   const due = await prisma.scheduledPost.findMany({
     where: { status: "PENDING", scheduledAt: { lt: new Date(Date.now() + 10 * 60_000) } },
     take: 200,
@@ -122,6 +123,29 @@ async function sweepPosts() {
     if (!job) {
       await schedulePublish(q(), p.id, p.scheduledAt);
       logger.info({ postId: p.id }, "re-queued missing publish job");
+    }
+  }
+}
+
+/** Remove published posts from Instagram once their auto-delete time has passed (checked every 5 min). */
+async function autoDeletePosts() {
+  const due = await prisma.scheduledPost.findMany({
+    where: { status: "PUBLISHED", deletedAt: null, igMediaId: { not: null }, deleteAt: { lte: new Date() } },
+    include: { account: true },
+    take: 50,
+  });
+  for (const p of due) {
+    try {
+      await igFor(p.account).deleteMedia(p.igMediaId!);
+      await prisma.scheduledPost.update({ where: { id: p.id }, data: { deletedAt: new Date(), error: null } });
+      await log(p.accountId, "post.auto_deleted", { postId: p.id, igMediaId: p.igMediaId });
+      await notify("Post deleted", `@${p.account.username}: ${p.type.toLowerCase()} removed (auto-delete)`, "/posts");
+    } catch (err) {
+      const msg = (err as Error).message;
+      // Not retried forever: clear the time, keep the reason on the post
+      await prisma.scheduledPost.update({ where: { id: p.id }, data: { deleteAt: null, error: `Auto-delete failed: ${msg}` } });
+      await log(p.accountId, "post.auto_delete_failed", { postId: p.id, error: msg });
+      await notify("Auto-delete failed", `@${p.account.username}: ${msg}`, "/posts");
     }
   }
 }

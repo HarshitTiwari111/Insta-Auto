@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { uploadMedia } from "@/lib/upload";
 import { api, type Post } from "@/lib/api";
+import { bannedHashtags } from "@/lib/bannedHashtags";
 import { AccountSwitcher, useAccounts } from "@/components/useAccounts";
 import { Badge, Button, Empty, ErrorNote, Field, Group, Header, Row, Segmented, Sheet } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
@@ -308,10 +309,22 @@ function PostRow({
   onAction: (action: "cancel" | "retry") => void;
 }) {
   const editable = p.status === "DRAFT" || p.status === "PENDING";
+  const qc = useQueryClient();
+  const keep = useMutation({
+    mutationFn: () => api(`/posts/${p.id}/auto-delete`, { method: "PATCH", json: { deleteAt: null } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["posts"] }),
+  });
   return (
     <Row
       title={`${typeLabel(p.type)} · ${new Date(p.scheduledAt).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}`}
-      subtitle={p.error ?? p.caption ?? p.mediaUrls[0] ?? "No media yet"}
+      subtitle={
+        p.error ??
+        (p.deletedAt
+          ? `Deleted from Instagram ${new Date(p.deletedAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}`
+          : p.deleteAt
+            ? `🗑️ Deletes ${new Date(p.deleteAt).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}`
+            : (p.caption ?? p.mediaUrls[0] ?? "No media yet"))
+      }
       right={
         <div className="flex flex-col items-end gap-1">
           <Badge tone={STATUS_TONE[p.status]}>{p.status.toLowerCase()}</Badge>
@@ -324,6 +337,11 @@ function PostRow({
             {p.status === "PENDING" && (
               <button className="text-[13px] text-danger" onClick={() => onAction("cancel")}>
                 Cancel
+              </button>
+            )}
+            {p.deleteAt && !p.deletedAt && !editable && (
+              <button className="text-[13px] text-accent" disabled={keep.isPending} onClick={() => confirm("Keep this post on Instagram (don't auto-delete)?") && keep.mutate()}>
+                Don&apos;t delete
               </button>
             )}
             {p.status === "FAILED" && (
@@ -500,6 +518,15 @@ function PostEditor({
   const [caption, setCaption] = useState(post?.caption ?? initialCaption ?? "");
   const [firstComment, setFirstComment] = useState(post?.firstComment ?? "");
   const [when, setWhen] = useState(localInputValue(post ? new Date(post.scheduledAt) : new Date(Date.now() + 30 * 60_000)));
+  // Auto-delete: "never", hours after publishing, or "custom" (own date)
+  const [delMode, setDelMode] = useState(post?.deleteAt ? "custom" : "never");
+  const [delAt, setDelAt] = useState(post?.deleteAt ? localInputValue(new Date(post.deleteAt)) : "");
+  const deleteAt = (() => {
+    if (delMode === "never") return null;
+    if (delMode === "custom") return delAt ? new Date(delAt).toISOString() : null;
+    return new Date(new Date(when).getTime() + Number(delMode) * 3600_000).toISOString();
+  })();
+  const banned = bannedHashtags(`${caption} ${firstComment}`);
   const done = () => {
     qc.invalidateQueries({ queryKey: ["posts"] });
     onClose();
@@ -516,6 +543,7 @@ function PostEditor({
           caption: type === "STORY" ? undefined : caption || undefined,
           firstComment: type === "STORY" ? undefined : firstComment.trim() || undefined,
           scheduledAt: new Date(when).toISOString(),
+          deleteAt,
           draft,
         },
       }),
@@ -672,8 +700,24 @@ function PostEditor({
           </Group>
         </>
       )}
+      {banned.length > 0 && (
+        <p className="mx-4 mb-4 rounded-xl bg-danger/10 px-4 py-3 text-[14px] text-danger">
+          ⚠️ Instagram blocks {banned.map((t) => `#${t}`).join(", ")}. Posts with blocked hashtags may not show up in search. Remove {banned.length === 1 ? "it" : "them"}.
+        </p>
+      )}
       <Group>
         <Field label="Publish at" type="datetime-local" value={when} onChange={setWhen} />
+        <label className="flex items-center justify-between gap-3 px-4 py-3">
+          <span className="text-[15px]">Delete automatically</span>
+          <select className="bg-transparent text-right text-[15px] text-accent outline-none" value={delMode} onChange={(e) => setDelMode(e.target.value)}>
+            <option value="never">Never</option>
+            <option value="24">After 1 day</option>
+            <option value="168">After 7 days</option>
+            <option value="720">After 30 days</option>
+            <option value="custom">On a date…</option>
+          </select>
+        </label>
+        {delMode === "custom" && <Field label="Delete on" type="datetime-local" value={delAt} onChange={setDelAt} />}
       </Group>
       <ErrorNote error={save.error ?? remove.error} />
       <div className="mx-4 flex flex-col gap-2">

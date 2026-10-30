@@ -191,6 +191,10 @@ model ScheduledPost {
   scheduledAt DateTime
   status      PostStatus @default(PENDING)
   igMediaId   String?
+  /// Auto-delete: remove the published post from Instagram at this time
+  deleteAt    DateTime?
+  /// Set once the post was removed from Instagram by auto-delete
+  deletedAt   DateTime?
   error       String?
   createdById String?
   createdAt   DateTime   @default(now())
