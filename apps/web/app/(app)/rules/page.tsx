@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { uploadMedia } from "@/lib/upload";
 import { api, type Rule } from "@/lib/api";
@@ -29,7 +29,14 @@ const blank = (trigger: Rule["trigger"]): Draft => ({
   priority: 100,
 });
 
-const lines = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean);
+/**
+ * A reply box holds one whole message (several lines allowed). Alternative versions, if wanted,
+ * are separated by a line with just "---"; one of them is picked at random when sending.
+ */
+const SEP = "\n---\n";
+const messages = (s: string) => s.split(/\n\s*-{3,}\s*\n/).map((m) => m.trim()).filter(Boolean);
+/** Rules saved before this change stored each line separately: show those as one message again */
+const toBox = (list: string[]) => list.join(list.some((t) => t.includes("\n")) ? SEP : "\n");
 
 export default function RulesPage() {
   const qc = useQueryClient();
@@ -151,8 +158,8 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
   const qc = useQueryClient();
   const [d, setD] = useState<Draft>(initial);
   const [keywords, setKeywords] = useState<string[]>(initial.keywords);
-  const [replies, setReplies] = useState(initial.replyTemplates.join("\n"));
-  const [privateReplies, setPrivateReplies] = useState(initial.privateReplyTemplates.join("\n"));
+  const [replies, setReplies] = useState(toBox(initial.replyTemplates));
+  const [privateReplies, setPrivateReplies] = useState(toBox(initial.privateReplyTemplates));
   const [sendDm, setSendDm] = useState(initial.privateReplyTemplates.length > 0);
   const [buttons, setButtons] = useState<string[]>(initial.quickReplies ?? []);
   const [action, setAction] = useState<Action>(initial.deleteComment ? "delete" : initial.hideComment ? "hide" : initial.aiReply ? "ai" : "reply");
@@ -168,11 +175,11 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
   const missing =
     d.matchType === "KEYWORD" && keywords.length === 0
       ? "Add at least one word in step 3"
-      : act === "reply" && !lines(replies).length
+      : act === "reply" && !messages(replies).length
         ? "Write the reply in step 4"
         : act === "ai" && !d.aiInstructions?.trim()
           ? "Tell the AI about your business in step 4"
-          : isComment && replying && sendDm && !lines(privateReplies).length
+          : isComment && replying && sendDm && !messages(privateReplies).length
             ? "Write the private DM in step 5, or switch it off"
             : null;
 
@@ -187,8 +194,8 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
         aiInstructions: act === "ai" ? d.aiInstructions?.trim() || null : d.aiInstructions,
         hideComment: isComment && act === "hide",
         deleteComment: isComment && act === "delete",
-        replyTemplates: replying ? lines(replies) : [],
-        privateReplyTemplates: isComment && replying && sendDm ? lines(privateReplies) : [],
+        replyTemplates: replying ? messages(replies) : [],
+        privateReplyTemplates: isComment && replying && sendDm ? messages(privateReplies) : [],
         quickReplies: isComment ? [] : buttons,
         replyMediaUrl: isComment ? null : d.replyMediaUrl?.trim() || null,
         mediaIds: isComment ? d.mediaIds : [],
@@ -406,11 +413,25 @@ function Box({ label, value, onChange, placeholder, single }: { label: string; v
         <input className="min-w-0 flex-1 bg-transparent text-right text-[15px] outline-none placeholder:text-muted" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
       </label>
     );
+  return <GrowBox label={label} value={value} onChange={onChange} placeholder={placeholder} />;
+}
+
+/** Multi-line box that grows with its text (no inner scrollbar) */
+function GrowBox({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.max(el.scrollHeight, 72)}px`;
+  }, [value]);
   return (
     <label className="block rounded-xl border border-card-border bg-card px-4 py-2.5">
       <span className="mb-0.5 block text-[13px] text-muted">{label}</span>
       <textarea
-        className="min-h-[72px] w-full resize-y bg-transparent py-1 outline-none placeholder:text-muted"
+        ref={ref}
+        rows={3}
+        className="w-full resize-none overflow-hidden bg-transparent py-1 outline-none placeholder:text-muted"
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
@@ -523,7 +544,7 @@ function TemplatePicker({ current, onInsert }: { current: string; onInsert: (tex
     mutationFn: (id: string) => api(`/templates/${id}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
   });
-  const inBox = new Set(lines(current));
+  const inBox = new Set(messages(current));
   const options = (list.data ?? []).filter((t) => !inBox.has(t.text.trim()));
   if (!options.length) return null;
   return (
