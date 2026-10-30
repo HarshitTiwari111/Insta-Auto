@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { uploadMedia } from "@/lib/upload";
 import { api, type Rule } from "@/lib/api";
 import { AccountSwitcher, useAccounts } from "@/components/useAccounts";
-import { Button, Empty, ErrorNote, Field, Group, Header, Row, Segmented, Sheet, Toggle } from "@/components/ui";
+import { Button, Empty, ErrorNote, Group, Header, Row, Segmented, Sheet, Toggle } from "@/components/ui";
 import { MediaPicker, useAllMedia } from "@/components/MediaPicker";
 
 type Draft = Omit<Rule, "id" | "accountId">;
@@ -63,8 +63,8 @@ export default function RulesPage() {
       <Header
         title="Rules"
         right={
-          <button className="text-[17px] text-accent" onClick={() => setEditing({ draft: blank(tab) })}>
-            New
+          <button className="text-[16px] font-semibold text-accent" onClick={() => setEditing({ draft: blank(tab) })}>
+            ＋ New rule
           </button>
         }
       />
@@ -73,8 +73,8 @@ export default function RulesPage() {
         value={tab}
         onChange={setTab}
         options={[
-          { value: "COMMENT", label: "Comments" },
-          { value: "DM", label: "DMs" },
+          { value: "COMMENT", label: "💬 Comment replies" },
+          { value: "DM", label: "📩 DM replies" },
         ]}
       />
       <ErrorNote error={rules.error} />
@@ -92,14 +92,14 @@ export default function RulesPage() {
           icon={tab === "COMMENT" ? "💬" : "📩"}
           text={
             tab === "COMMENT"
-              ? "No comment rules. Example: keyword “price” → reply under the comment + send a private DM."
-              : "No DM rules. Example: keyword “hi” → auto reply with your FAQ."
+              ? "No rules yet. A rule replies for you automatically. Example: when someone comments “price”, reply “Check your DM 📩” and send them the price in a private DM. Tap ＋ New rule."
+              : "No rules yet. Example: when someone DMs “hi”, reply with your price list. Tap ＋ New rule."
           }
         />
       )}
 
       {list.length > 0 && (
-        <Group footer="Checked top to bottom (lower priority number first). First match wins.">
+        <Group footer="Switch off a rule to pause it. If two rules match the same message, the one higher in this list is used.">
           {list.map((r) => (
             <Row
               key={r.id}
@@ -128,49 +128,70 @@ export default function RulesPage() {
 }
 
 function describe(r: Rule): string {
-  const on = r.trigger === "COMMENT" && r.mediaIds?.length ? ` on ${r.mediaIds.length} post${r.mediaIds.length === 1 ? "" : "s"}` : "";
-  const when = (r.matchType === "ANY" ? "Any message" : `Contains: ${r.keywords.join(", ")}`) + on;
+  const what = r.trigger === "DM" ? "DMs" : "Comments";
+  const where = r.trigger === "COMMENT" ? (r.mediaIds?.length ? ` on ${r.mediaIds.length} chosen post${r.mediaIds.length === 1 ? "" : "s"}` : " on all posts") : "";
+  const when = r.matchType === "ANY" ? `All ${what.toLowerCase()}` : `${what} with ${r.keywords.map((k) => `“${k}”`).join(", ")}`;
   const acts = [
-    r.deleteComment && "delete",
-    r.hideComment && "hide",
-    r.aiReply && (r.trigger === "DM" ? "AI reply" : "AI public reply"),
-    !r.aiReply && r.replyTemplates.length && (r.trigger === "DM" ? "reply" : "public reply"),
-    r.privateReplyTemplates.length && "private DM",
-    r.quickReplies?.length && `${r.quickReplies.length} buttons`,
+    r.deleteComment && "delete it",
+    r.hideComment && "hide it",
+    r.aiReply && "AI writes a reply",
+    !r.aiReply && !r.hideComment && !r.deleteComment && r.replyTemplates.length && "reply",
+    r.privateReplyTemplates.length && "send a private DM",
+    r.quickReplies?.length && "show buttons",
   ].filter(Boolean);
-  return `${when} → ${acts.join(" + ")}`;
+  return `${when}${where} → ${acts.join(" + ")}`;
 }
+
+type Action = "reply" | "ai" | "hide" | "delete";
 
 function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id?: string; initial: Draft; onClose: () => void }) {
   const qc = useQueryClient();
   const [d, setD] = useState<Draft>(initial);
-  const [keywords, setKeywords] = useState(initial.keywords.join(", "));
+  const [keywords, setKeywords] = useState<string[]>(initial.keywords);
   const [replies, setReplies] = useState(initial.replyTemplates.join("\n"));
   const [privateReplies, setPrivateReplies] = useState(initial.privateReplyTemplates.join("\n"));
-  const [buttons, setButtons] = useState((initial.quickReplies ?? []).join(", "));
+  const [sendDm, setSendDm] = useState(initial.privateReplyTemplates.length > 0);
+  const [buttons, setButtons] = useState<string[]>(initial.quickReplies ?? []);
+  const [more, setMore] = useState(false);
+  const [action, setAction] = useState<Action>(initial.deleteComment ? "delete" : initial.hideComment ? "hide" : initial.aiReply ? "ai" : "reply");
   const isComment = d.trigger === "COMMENT";
+  const act: Action = !isComment && (action === "hide" || action === "delete") ? "reply" : action;
+  const replying = act === "reply" || act === "ai";
 
   const media = useAllMedia(accountId, isComment);
   const [picking, setPicking] = useState(false);
   const chosen = (media.data ?? []).filter((m) => d.mediaIds.includes(m.id));
 
+  // What is still missing, in plain words (Save stays off until it's empty)
+  const missing =
+    d.matchType === "KEYWORD" && keywords.length === 0
+      ? "Add at least one word in step 3"
+      : act === "reply" && !lines(replies).length
+        ? "Write the reply in step 4"
+        : act === "ai" && !d.aiInstructions?.trim()
+          ? "Tell the AI about your business in step 4"
+          : isComment && replying && sendDm && !lines(privateReplies).length
+            ? "Write the private DM in step 5, or switch it off"
+            : null;
+
   const save = useMutation({
     mutationFn: () => {
+      const name = d.name.trim() || (d.matchType === "ANY" ? (isComment ? "Every comment" : "Every DM") : `Reply to: ${keywords.join(", ")}`).slice(0, 100);
       const body: Draft = {
         ...d,
-        keywords: keywords.split(",").map((k) => k.trim()).filter(Boolean),
-        replyTemplates: lines(replies),
-        aiInstructions: d.aiReply ? d.aiInstructions?.trim() || null : d.aiInstructions,
-        privateReplyTemplates: isComment ? lines(privateReplies) : [],
-        hideComment: isComment ? d.hideComment : false,
-        deleteComment: isComment ? d.deleteComment : false,
-        quickReplies: isComment ? [] : buttons.split(",").map((b) => b.trim()).filter(Boolean),
+        name,
+        keywords: d.matchType === "KEYWORD" ? keywords : [],
+        aiReply: act === "ai",
+        aiInstructions: act === "ai" ? d.aiInstructions?.trim() || null : d.aiInstructions,
+        hideComment: isComment && act === "hide",
+        deleteComment: isComment && act === "delete",
+        replyTemplates: replying ? lines(replies) : [],
+        privateReplyTemplates: isComment && replying && sendDm ? lines(privateReplies) : [],
+        quickReplies: isComment ? [] : buttons,
         replyMediaUrl: isComment ? null : d.replyMediaUrl?.trim() || null,
         mediaIds: isComment ? d.mediaIds : [],
       };
-      return id
-        ? api(`/rules/${id}`, { method: "PUT", json: body })
-        : api(`/accounts/${accountId}/rules`, { method: "POST", json: body });
+      return id ? api(`/rules/${id}`, { method: "PUT", json: body }) : api(`/accounts/${accountId}/rules`, { method: "POST", json: body });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["rules"] });
@@ -185,38 +206,38 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
     },
   });
 
+  let step = 0;
+  const n = () => ++step;
+
   return (
     <Sheet open onClose={onClose} title={id ? "Edit rule" : "New rule"}>
-      <Segmented
-        value={d.trigger}
-        onChange={(trigger) => setD({ ...d, trigger })}
-        options={[
-          { value: "COMMENT", label: "On comment" },
-          { value: "DM", label: "On DM" },
-        ]}
-      />
+      <Step n={n()} title="When someone…">
+        <div className="grid grid-cols-2 gap-2">
+          <Choice on={isComment} onClick={() => setD({ ...d, trigger: "COMMENT" })} icon="💬" title="Comments" text="on my posts" />
+          <Choice on={!isComment} onClick={() => setD({ ...d, trigger: "DM" })} icon="📩" title="Sends a DM" text="to my account" />
+        </div>
+      </Step>
+
       {isComment && (
-        <Group title="Post / reel" footer="Choose the posts or reels this rule replies on. Nothing chosen = all posts and reels.">
-          <button className="press block w-full px-4 py-3 text-left" onClick={() => setPicking(true)}>
-            <span className="flex items-center gap-2">
-              {d.mediaIds.length === 0 ? (
-                <span className="text-[16px]">All posts &amp; reels</span>
-              ) : (
-                <>
-                  <span className="flex -space-x-2">
-                    {chosen.slice(0, 4).map((m) => (
-                      <img key={m.id} src={m.thumbnail_url ?? m.media_url} alt="" className="h-9 w-9 rounded-md border-2 border-card object-cover" />
-                    ))}
-                  </span>
-                  <span className="text-[16px]">
-                    {d.mediaIds.length} selected post{d.mediaIds.length === 1 ? "" : "s"}
-                  </span>
-                </>
-              )}
-              <span className="ml-auto text-[15px] font-semibold text-accent">Choose ›</span>
-            </span>
+        <Step n={n()} title="On which posts?">
+          <button className="press flex w-full items-center gap-3 rounded-xl border border-card-border bg-card px-4 py-3 text-left" onClick={() => setPicking(true)}>
+            {d.mediaIds.length === 0 ? (
+              <span className="text-[16px]">All my posts &amp; reels</span>
+            ) : (
+              <>
+                <span className="flex -space-x-2">
+                  {chosen.slice(0, 4).map((m) => (
+                    <img key={m.id} src={m.thumbnail_url ?? m.media_url} alt="" className="h-9 w-9 rounded-md border-2 border-card object-cover" />
+                  ))}
+                </span>
+                <span className="text-[16px]">
+                  {d.mediaIds.length} chosen post{d.mediaIds.length === 1 ? "" : "s"}
+                </span>
+              </>
+            )}
+            <span className="ml-auto text-[15px] font-semibold text-accent">Change ›</span>
           </button>
-        </Group>
+        </Step>
       )}
       {picking && (
         <MediaPicker
@@ -229,104 +250,117 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
           }}
         />
       )}
-      <Group>
-        <Field label="Rule name" value={d.name} onChange={(name) => setD({ ...d, name })} placeholder="e.g. Price enquiries" />
-      </Group>
 
-      <Group title="When">
-        <Row
-          title="Match every message"
-          right={<Toggle label="Match any" on={d.matchType === "ANY"} onChange={(v) => setD({ ...d, matchType: v ? "ANY" : "KEYWORD" })} />}
-        />
+      <Step n={n()} title={isComment ? "Which comments?" : "Which messages?"}>
+        <div className="grid grid-cols-2 gap-2">
+          <Choice on={d.matchType === "KEYWORD"} onClick={() => setD({ ...d, matchType: "KEYWORD" })} icon="🔑" title="With certain words" text="e.g. price, kitna" />
+          <Choice on={d.matchType === "ANY"} onClick={() => setD({ ...d, matchType: "ANY" })} icon="🌐" title={isComment ? "Every comment" : "Every message"} text="no words needed" />
+        </div>
         {d.matchType === "KEYWORD" && (
-          <Field label="Keywords (comma separated, any one matches)" value={keywords} onChange={setKeywords} placeholder="price, kitna, cost" />
+          <div className="mt-3">
+            <ChipInput values={keywords} onChange={setKeywords} placeholder="Type a word and press Enter" />
+            <p className="mt-1.5 px-1 text-[13px] text-muted">If the {isComment ? "comment" : "message"} has any one of these words, the rule runs. Capital letters don't matter.</p>
+          </div>
         )}
-      </Group>
+      </Step>
 
-      <Group
-        title="Then"
-        footer={
-          isComment
-            ? "One line = one variant (picked at random). {username} = commenter. Private DM: Meta allows 1 per comment, within 7 days."
-            : "One line = one variant (picked at random). Sent only inside Meta's 24h window after their message."
-        }
-      >
-        {isComment && (
-          <Row
-            title="Delete the comment"
-            subtitle="Spam: removes it completely (no reply, no hide)"
-            right={<Toggle label="Delete comment" on={d.deleteComment} onChange={(deleteComment) => setD({ ...d, deleteComment })} />}
-          />
-        )}
-        {isComment && !d.deleteComment && (
-          <Row
-            title="Hide the comment"
-            subtitle="For spam / blacklist words (no public reply)"
-            right={<Toggle label="Hide comment" on={d.hideComment} onChange={(hideComment) => setD({ ...d, hideComment })} />}
-          />
-        )}
-        {!(isComment && (d.hideComment || d.deleteComment)) && (
-          <Row
-            title="AI reply (Gemini)"
-            subtitle="AI reads the message and writes the reply"
-            right={<Toggle label="AI reply" on={d.aiReply} onChange={(aiReply) => setD({ ...d, aiReply })} />}
-          />
-        )}
-        {!(isComment && (d.hideComment || d.deleteComment)) && d.aiReply && (
-          <Field
-            label="About your business (AI uses only this)"
-            value={d.aiInstructions ?? ""}
-            onChange={(aiInstructions) => setD({ ...d, aiInstructions })}
-            multiline
-            placeholder="e.g. Launchigo: digital marketing services in Lucknow. Prices are shared in DM. Reply politely in Hinglish."
-          />
-        )}
-        {!(isComment && (d.hideComment || d.deleteComment)) && (
-          <TemplatePicker current={replies} onInsert={(t) => setReplies(replies.trim() ? `${replies.trim()}\n${t}` : t)} />
-        )}
-        {!(isComment && (d.hideComment || d.deleteComment)) && (
-          <Field
-            label={
-              d.aiReply
-                ? "Backup reply (used if AI is busy)"
-                : isComment
-                  ? "Public reply under the comment"
-                  : "DM reply"
-            }
-            value={replies}
-            onChange={setReplies}
-            multiline
-            placeholder={isComment ? "Thanks {username}! Check your DMs 📩" : "Hi! Here is our price list: …"}
-          />
-        )}
-        {!isComment && <DmMedia url={d.replyMediaUrl} onChange={(replyMediaUrl) => setD({ ...d, replyMediaUrl })} />}
-        {!isComment && (
-          <Field
-            label="Quick reply buttons (comma separated, max 13, 20 letters each)"
-            value={buttons}
-            onChange={setButtons}
-            placeholder="Price, Services, Talk to team"
-          />
-        )}
-        {isComment && !d.deleteComment && (
-          <TemplatePicker
-            current={privateReplies}
-            forDm
-            onInsert={(t) => setPrivateReplies(privateReplies.trim() ? `${privateReplies.trim()}\n${t}` : t)}
-          />
-        )}
-        {isComment && !d.deleteComment && (
-          <Field label="Private DM to the commenter" value={privateReplies} onChange={setPrivateReplies} multiline placeholder="Hi! Here are the details you asked for: …" />
-        )}
-      </Group>
+      <Step n={n()} title="What should happen?">
+        <div className="grid grid-cols-2 gap-2">
+          <Choice on={act === "reply"} onClick={() => setAction("reply")} icon="✍️" title="Reply with my text" text="you write it" />
+          <Choice on={act === "ai"} onClick={() => setAction("ai")} icon="✨" title="AI writes the reply" text="reads the message" />
+          {isComment && <Choice on={act === "hide"} onClick={() => setAction("hide")} icon="🙈" title="Hide the comment" text="for spam" />}
+          {isComment && <Choice on={act === "delete"} onClick={() => setAction("delete")} icon="🗑️" title="Delete the comment" text="for spam" />}
+        </div>
 
-      <Group>
-        <Field label="Priority (lower runs first)" type="number" value={String(d.priority)} onChange={(v) => setD({ ...d, priority: Number(v) || 0 })} />
-      </Group>
+        {act === "ai" && (
+          <div className="mt-3">
+            <Box
+              label="About your business (AI uses only this)"
+              value={d.aiInstructions ?? ""}
+              onChange={(aiInstructions) => setD({ ...d, aiInstructions })}
+              placeholder="e.g. Launchigo: Google Ads services in Lucknow. Prices are shared in DM. Reply politely in Hinglish."
+            />
+          </div>
+        )}
+        {replying && (
+          <div className="mt-3">
+            <Box
+              label={act === "ai" ? "Backup reply (used only if AI is busy)" : isComment ? "Your reply (shown under their comment)" : "Your reply"}
+              value={replies}
+              onChange={setReplies}
+              placeholder={isComment ? "Thanks {username}! Check your DMs 📩" : "Hi! Here is our price list: …"}
+            />
+            <p className="mt-1.5 px-1 text-[13px] text-muted">
+              {isComment ? "Write {username} to add their name. " : ""}Want variety? Write a few replies, one per line. One is picked at random.
+            </p>
+            <TemplatePicker current={replies} onInsert={(t) => setReplies(replies.trim() ? `${replies.trim()}\n${t}` : t)} />
+          </div>
+        )}
+        {(act === "hide" || act === "delete") && (
+          <p className="mt-3 px-1 text-[13px] text-muted">
+            {act === "hide" ? "Hidden comments are only visible to the person who wrote them." : "The comment is removed from Instagram for everyone."} No reply is sent.
+          </p>
+        )}
+      </Step>
+
+      {isComment && replying && (
+        <Step n={n()} title="Also send them a private DM?">
+          <div className="flex items-center justify-between rounded-xl border border-card-border bg-card px-4 py-3">
+            <span className="text-[15px]">Send a private message to the person who commented</span>
+            <Toggle label="Send private DM" on={sendDm} onChange={setSendDm} />
+          </div>
+          {sendDm && (
+            <div className="mt-3">
+              <Box label="Private DM" value={privateReplies} onChange={setPrivateReplies} placeholder="Hi! Here are the details you asked for: …" />
+              <p className="mt-1.5 px-1 text-[13px] text-muted">Instagram allows one private DM per comment, within 7 days of the comment.</p>
+              <TemplatePicker current={privateReplies} forDm onInsert={(t) => setPrivateReplies(privateReplies.trim() ? `${privateReplies.trim()}\n${t}` : t)} />
+            </div>
+          )}
+        </Step>
+      )}
+
+      {!isComment && replying && (
+        <Step n={n()} title="Extras (optional)">
+          <p className="mb-1.5 px-1 text-[13px] text-muted">Buttons under your reply. When they tap one, it comes back like a message.</p>
+          <ChipInput values={buttons} onChange={setButtons} placeholder="e.g. Price, Services" max={13} maxLen={20} />
+          <div className="mt-3 rounded-xl border border-card-border bg-card">
+            <DmMedia url={d.replyMediaUrl} onChange={(replyMediaUrl) => setD({ ...d, replyMediaUrl })} />
+          </div>
+          <p className="mt-1.5 px-1 text-[13px] text-muted">Instagram allows replies only within 24 hours of their message.</p>
+        </Step>
+      )}
+
+      <Step n={n()} title="Name this rule (optional)">
+        <Box
+          single
+          label="Rule name"
+          value={d.name}
+          onChange={(name) => setD({ ...d, name })}
+          placeholder={d.matchType === "ANY" ? (isComment ? "Every comment" : "Every DM") : keywords.length ? `Reply to: ${keywords.join(", ")}` : "e.g. Price questions"}
+        />
+      </Step>
+
+      <div className="mx-4 mb-4">
+        <button className="text-[14px] font-semibold text-muted" onClick={() => setMore((m) => !m)}>
+          {more ? "▾" : "▸"} More options
+        </button>
+        {more && (
+          <div className="mt-2">
+            <Box
+              single
+              label="Order (lower number is checked first)"
+              value={String(d.priority)}
+              onChange={(v) => setD({ ...d, priority: Number(v.replace(/\D/g, "")) || 0 })}
+              placeholder="100"
+            />
+          </div>
+        )}
+      </div>
 
       <ErrorNote error={save.error ?? remove.error} />
       <div className="mx-4 space-y-3">
-        <Button onClick={() => save.mutate()} disabled={save.isPending || !d.name}>
+        {missing && <p className="text-center text-[13px] text-muted">{missing}</p>}
+        <Button onClick={() => save.mutate()} disabled={save.isPending || Boolean(missing)}>
           {save.isPending ? "Saving…" : "Save rule"}
         </Button>
         {id && (
@@ -336,6 +370,92 @@ function RuleEditor({ accountId, id, initial, onClose }: { accountId: string; id
         )}
       </div>
     </Sheet>
+  );
+}
+
+/** Numbered step: "1  When someone…" */
+function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+  return (
+    <section className="mx-4 mb-6">
+      <h2 className="mb-2 flex items-center gap-2 text-[16px] font-semibold">
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-[13px] font-bold text-white">{n}</span>
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+/** Big tappable option card */
+function Choice({ on, onClick, icon, title, text }: { on: boolean; onClick: () => void; icon: string; title: string; text: string }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={on}
+      className={`press rounded-xl border-2 px-3 py-3 text-left transition ${on ? "border-accent bg-accent/10" : "border-card-border bg-card"}`}
+    >
+      <div className="text-[20px]">{icon}</div>
+      <div className="mt-1 text-[15px] font-semibold leading-tight">{title}</div>
+      <div className="text-[12px] text-muted">{text}</div>
+    </button>
+  );
+}
+
+/** Labelled text box (multi-line unless `single`) */
+function Box({ label, value, onChange, placeholder, single }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; single?: boolean }) {
+  return (
+    <label className="block rounded-xl border border-card-border bg-card px-4 py-2.5">
+      <span className="mb-0.5 block text-[13px] text-muted">{label}</span>
+      {single ? (
+        <input className="w-full bg-transparent py-1 outline-none placeholder:text-muted" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+      ) : (
+        <textarea
+          className="min-h-[72px] w-full resize-y bg-transparent py-1 outline-none placeholder:text-muted"
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
+    </label>
+  );
+}
+
+/** Words as chips: type and press Enter (or comma) to add, ✕ to remove. */
+function ChipInput({ values, onChange, placeholder, max = 50, maxLen = 100 }: { values: string[]; onChange: (v: string[]) => void; placeholder: string; max?: number; maxLen?: number }) {
+  const [text, setText] = useState("");
+  const add = (raw: string) => {
+    const words = raw.split(",").map((w) => w.trim().slice(0, maxLen)).filter(Boolean);
+    const next = [...values];
+    for (const w of words) if (!next.some((x) => x.toLowerCase() === w.toLowerCase()) && next.length < max) next.push(w);
+    onChange(next);
+    setText("");
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-card-border bg-card px-3 py-2.5">
+      {values.map((v) => (
+        <span key={v} className="flex items-center gap-1 rounded-full bg-fill py-1 pl-3 pr-2 text-[14px]">
+          {v}
+          <button aria-label={`Remove ${v}`} className="px-1 text-muted" onClick={() => onChange(values.filter((x) => x !== v))}>
+            ✕
+          </button>
+        </span>
+      ))}
+      <input
+        className="min-w-[140px] flex-1 bg-transparent py-1 text-[15px] outline-none placeholder:text-muted"
+        value={text}
+        placeholder={values.length ? "Add another…" : placeholder}
+        onChange={(e) => (e.target.value.includes(",") ? add(e.target.value) : setText(e.target.value))}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (text.trim()) add(text);
+          } else if (e.key === "Backspace" && !text && values.length) {
+            onChange(values.slice(0, -1));
+          }
+        }}
+        onBlur={() => text.trim() && add(text)}
+      />
+    </div>
   );
 }
 
@@ -410,8 +530,8 @@ function TemplatePicker({ current, onInsert, forDm }: { current: string; onInser
   });
   const last = current.split("\n").map((l) => l.trim()).filter(Boolean).at(-1);
   return (
-    <div className="px-4 pt-2.5">
-      <span className="mb-1 block text-[13px] text-muted">{forDm ? "Templates for the DM" : "Templates library"} (tap to add)</span>
+    <div className="px-1 pt-2.5">
+      <span className="mb-1 block text-[13px] text-muted">Saved replies (tap one to use it)</span>
       <div className="flex flex-wrap gap-2">
         {list.data?.map((t) => (
           <span key={t.id} className="flex items-center gap-1 rounded-full bg-fill px-3 py-1.5 text-[14px]" title={t.text}>
@@ -429,7 +549,7 @@ function TemplatePicker({ current, onInsert, forDm }: { current: string; onInser
             if (name) add.mutate({ name, text: last });
           }}
         >
-          ＋ Save last line
+          ＋ Save this reply
         </button>
       </div>
       {(add.error || drop.error) && <p className="mt-1 text-[13px] text-danger">{((add.error ?? drop.error) as Error).message}</p>}
